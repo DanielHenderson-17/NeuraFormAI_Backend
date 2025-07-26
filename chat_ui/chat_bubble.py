@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QSizePolicy
 )
 from PyQt6.QtCore import Qt
+from datetime import datetime
 
 
 class ChatBubble(QWidget):
@@ -20,29 +21,34 @@ class ChatBubble(QWidget):
         label = QLabel(full_text)
         label.setWordWrap(True)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-
-        # Add vertical padding and min height to support clean border-radius
         label.setStyleSheet(f"""
             background-color: {bubble_bg};
             color: {text_color};
             border: 1px solid #ccc;
-            border-radius: 20px;
-            padding: 16px 20px;
+            border-radius: 16px;
+            padding: 12px 16px;
         """)
-        label.setMinimumHeight(48)
-
+        label.setMinimumHeight(32)
         label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
-        # Optional container to apply margins outside bubble
+        # Timestamp
+        timestamp = QLabel(datetime.now().strftime("%I:%M %p").lstrip("0"))  # e.g., 2:41 PM
+        timestamp.setStyleSheet("color: gray; font-size: 10px; margin-top: 4px;")
+        timestamp.setAlignment(Qt.AlignmentFlag.AlignRight if self.align_right else Qt.AlignmentFlag.AlignLeft)
+
+        # Bubble layout
         frame = QWidget()
         frame_layout = QVBoxLayout(frame)
-        frame_layout.setContentsMargins(10, 10, 10, 10)
+        frame_layout.setContentsMargins(6, 6, 6, 6)  # tighter margins
+        frame_layout.setSpacing(4)
         frame_layout.addWidget(label)
+        frame_layout.addWidget(timestamp)
 
         frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
-        # Main layout to align bubble
+        # Main layout to align the whole thing
         layout = QVBoxLayout(self)
         layout.addWidget(frame)
         layout.setAlignment(Qt.AlignmentFlag.AlignRight if self.align_right else Qt.AlignmentFlag.AlignLeft)
-        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)

@@ -2,9 +2,11 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QScrollArea, QLineEdit, QPushButton,
     QHBoxLayout, QFrame
 )
-from PyQt6.QtCore import Qt, QEvent, QCoreApplication
+from PyQt6.QtCore import Qt, QEvent, QCoreApplication, QTimer, QSize
+from PyQt6.QtGui import QIcon
 from chat_ui.chat_bubble import ChatBubble
 from chat_ui.persona_loader import get_persona_name
+from chat_ui.voice_recorder import VoiceRecorder
 import threading
 import requests
 
@@ -17,17 +19,26 @@ class ReplyEvent(QEvent):
         self.text = text
 
 
+class UserInputEvent(QEvent):
+    EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
+
+    def __init__(self, text):
+        super().__init__(UserInputEvent.EVENT_TYPE)
+        self.text = text
+
+
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
 
         self.persona_name = get_persona_name()
         self.setWindowTitle("NeuraForm - AI Chat")
+        self.recorder = VoiceRecorder()
+        self.voice_mode = False
 
-        # === Main layout ===
         self.layout = QVBoxLayout(self)
 
-        # === Scroll area setup ===
+        # === Scroll area ===
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setStyleSheet("background-color: #eaeaea;")
@@ -36,48 +47,110 @@ class ChatWindow(QWidget):
         self.scroll_content.setStyleSheet("background-color: transparent;")
         self.scroll_area.setWidget(self.scroll_content)
 
-        # === Intermediate container ===
         self.inner_container = QWidget()
         self.inner_container.setStyleSheet("background-color: transparent;")
         self.inner_layout = QVBoxLayout(self.inner_container)
         self.inner_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # === Add inner container to scroll content ===
         self.scroll_content_layout = QVBoxLayout(self.scroll_content)
         self.scroll_content_layout.setContentsMargins(0, 0, 0, 0)
         self.scroll_content_layout.addWidget(self.inner_container)
-
-        # === Use inner_layout as scroll_layout alias ===
         self.scroll_layout = self.inner_layout
 
-        # === Input field and send button ===
+        self.layout.addWidget(self.scroll_area)
+
+        # === Input Area ===
+        self.input_row = QHBoxLayout()
+
+        # Entry box (always shown)
         self.entry = QLineEdit()
-        self.entry.setPlaceholderText("Type a message...")
+        self.entry.setFixedHeight(40)
+        self.entry.setPlaceholderText("Start typing...")
         self.entry.returnPressed.connect(self.send_message)
 
+        # Send button
         self.send_button = QPushButton("Send")
+        self.send_button.setFixedHeight(40)
         self.send_button.clicked.connect(self.send_message)
 
-        input_row = QHBoxLayout()
-        input_row.addWidget(self.entry)
-        input_row.addWidget(self.send_button)
+        # Mic toggle
+        self.mic_button = QPushButton()
+        self.mic_button.setIcon(QIcon("chat_ui/assets/mic.svg"))
+        self.mic_button.setIconSize(QSize(18, 18))
+        self.mic_button.setFixedSize(40, 40)
+        self.mic_button.setCheckable(True)
+        self.mic_button.clicked.connect(lambda: self.set_input_mode("mic"))
 
-        # === Assemble layout ===
-        self.layout.addWidget(self.scroll_area)
-        self.layout.addLayout(input_row)
+        # Keyboard toggle
+        self.keyboard_button = QPushButton()
+        self.keyboard_button.setIcon(QIcon("chat_ui/assets/keyboard.svg"))
+        self.keyboard_button.setIconSize(QSize(18, 18))
+        self.keyboard_button.setFixedSize(40, 40)
+        self.keyboard_button.setCheckable(True)
+        self.keyboard_button.clicked.connect(lambda: self.set_input_mode("keyboard"))
+
+        toggle_style = """
+            QPushButton {
+                border: 1px solid transparent;
+                border-radius: 6px;
+                background-color: transparent;
+            }
+            QPushButton:checked {
+                background-color: gray;
+                border: 1px solid #ccc;
+            }
+        """
+        self.mic_button.setStyleSheet(toggle_style)
+        self.keyboard_button.setStyleSheet(toggle_style)
+
+        # Layout
+        self.input_row.addWidget(self.mic_button)
+        self.input_row.addWidget(self.keyboard_button)
+        self.input_row.addWidget(self.entry)
+        self.input_row.addWidget(self.send_button)
+
+        self.layout.addLayout(self.input_row)
+
+        # Start in keyboard mode
+        self.set_input_mode("keyboard")
+
+    def set_input_mode(self, mode):
+        self.voice_mode = (mode == "mic")
+
+        if self.voice_mode:
+            self.entry.setPlaceholderText("Listening...")
+            self.entry.setReadOnly(True)
+            self.send_button.setEnabled(False)
+            self.mic_button.setChecked(True)
+            self.keyboard_button.setChecked(False)
+            self.recorder.continuous_mode = True
+            self.recorder.start_recording_async(
+                self.voice_input_callback,
+                on_status=self.update_status
+            )
+        else:
+            self.recorder.stop()
+            self.entry.setPlaceholderText("Start typing...")
+            self.entry.setReadOnly(False)
+            self.send_button.setEnabled(True)
+            self.mic_button.setChecked(False)
+            self.keyboard_button.setChecked(True)
+
+    def update_status(self, text):
+        self.entry.setPlaceholderText(text)
+        if text == "Stopped.":
+            self.set_input_mode("keyboard")
 
     def add_bubble(self, message, sender="user"):
-        print(f"Adding bubble — sender: {sender}, message: {message}")
-
         bubble = ChatBubble(
             message=message,
             sender_name="You" if sender == "user" else self.persona_name,
             align_right=(sender == "user")
         )
         self.scroll_layout.addWidget(bubble)
-        print("Bubble count:", self.scroll_layout.count())
+        QTimer.singleShot(50, self.scroll_to_bottom)
 
-        QCoreApplication.processEvents()
+    def scroll_to_bottom(self):
         self.scroll_area.verticalScrollBar().setValue(
             self.scroll_area.verticalScrollBar().maximum()
         )
@@ -107,11 +180,17 @@ class ChatWindow(QWidget):
         except Exception as e:
             reply_text = f"(Request failed: {e})"
 
-        print("AI reply:", reply_text)
         QCoreApplication.postEvent(self, ReplyEvent(reply_text))
 
     def event(self, event):
         if event.type() == ReplyEvent.EVENT_TYPE:
             self.add_bubble(event.text, sender="ai")
             return True
+        elif event.type() == UserInputEvent.EVENT_TYPE:
+            self.add_bubble(event.text, sender="user")
+            threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
+            return True
         return super().event(event)
+
+    def voice_input_callback(self, transcript):
+        QCoreApplication.postEvent(self, UserInputEvent(transcript))
