@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QWidget, QLabel, QVBoxLayout, QSizePolicy
+    QWidget, QLabel, QVBoxLayout, QHBoxLayout, QSizePolicy
 )
 from PyQt6.QtCore import Qt
 from datetime import datetime
@@ -8,17 +8,18 @@ from datetime import datetime
 class ChatBubble(QWidget):
     def __init__(self, message, sender_name, align_right=False):
         super().__init__()
-        self.message = message
-        self.sender_name = sender_name
-        self.align_right = align_right
-        self.init_ui()
+        self.message = message                  # 🧾 The actual text of the message
+        self.sender_name = sender_name          # 🧑 Name to prefix the message with
+        self.align_right = align_right          # ⬅️➡️ Determines if the bubble is left or right aligned
+        self.init_ui()                          # 🎨 Build the visual layout
 
     def init_ui(self):
-        bubble_bg = "#d1ecf1" if not self.align_right else "#ffffff"
+        # 🎨 Bubble background color based on alignment
+        bubble_bg = "#ffffff" if self.align_right else "#d1ecf1"
         text_color = "#000000"
 
-        full_text = f"{self.sender_name}: {self.message}"
-        label = QLabel(full_text)
+        # 📋 QLabel displaying the sender and message
+        label = QLabel(f"{self.sender_name}: {self.message}")
         label.setWordWrap(True)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         label.setStyleSheet(f"""
@@ -31,24 +32,30 @@ class ChatBubble(QWidget):
         label.setMinimumHeight(32)
         label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
-        # Timestamp
-        timestamp = QLabel(datetime.now().strftime("%I:%M %p").lstrip("0"))  # e.g., 2:41 PM
+        # 🕒 Timestamp label (e.g., "3:45 PM")
+        timestamp = QLabel(datetime.now().strftime("%I:%M %p").lstrip("0"))
         timestamp.setStyleSheet("color: gray; font-size: 10px; margin-top: 4px;")
         timestamp.setAlignment(Qt.AlignmentFlag.AlignRight if self.align_right else Qt.AlignmentFlag.AlignLeft)
 
-        # Bubble layout
-        frame = QWidget()
-        frame_layout = QVBoxLayout(frame)
-        frame_layout.setContentsMargins(6, 6, 6, 6)  # tighter margins
-        frame_layout.setSpacing(4)
-        frame_layout.addWidget(label)
-        frame_layout.addWidget(timestamp)
+        # 🧱 Container for message + timestamp (stacked vertically)
+        bubble_container = QWidget()
+        bubble_layout = QVBoxLayout(bubble_container)
+        bubble_layout.setContentsMargins(6, 6, 6, 6)
+        bubble_layout.setSpacing(4)
+        bubble_layout.addWidget(label)
+        bubble_layout.addWidget(timestamp)
 
-        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        # 🔄 Responsive width, max 75% of parent or 800px
+        bubble_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        bubble_container.setMaximumWidth(int(self.parentWidget().width() * 0.75) if self.parentWidget() else 800)
 
-        # Main layout to align the whole thing
-        layout = QVBoxLayout(self)
-        layout.addWidget(frame)
-        layout.setAlignment(Qt.AlignmentFlag.AlignRight if self.align_right else Qt.AlignmentFlag.AlignLeft)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(2)
+        # 🧭 Final horizontal layout to control left/right alignment
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(8, 2, 8, 2)
+
+        if self.align_right:
+            main_layout.addStretch()               # ⬅ Push bubble to the right
+            main_layout.addWidget(bubble_container)
+        else:
+            main_layout.addWidget(bubble_container)  # ⬅ Push bubble to the left
+            main_layout.addStretch()

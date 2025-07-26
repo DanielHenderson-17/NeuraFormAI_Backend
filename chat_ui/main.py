@@ -1,11 +1,18 @@
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from PyQt6.QtWidgets import QApplication, QMainWindow
+from PyQt6.QtGui import QIcon  # ← Make sure this is imported
 from chat_ui.chat_window import ChatWindow
+
+# Add parent path for module resolution
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 def main():
     app = QApplication(sys.argv)
+
+    # ✅ THIS is the only new line you need
+    app.setWindowIcon(QIcon("chat_ui/assets/neuraform_icon.png"))
+
     window = QMainWindow()
     chat = ChatWindow()
     window.setCentralWidget(chat)

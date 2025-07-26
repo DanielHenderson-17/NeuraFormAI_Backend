@@ -11,6 +11,7 @@ import threading
 import requests
 
 
+# 🎯 Custom Event used to inject AI replies into the UI thread
 class ReplyEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
@@ -19,6 +20,7 @@ class ReplyEvent(QEvent):
         self.text = text
 
 
+# 🎯 Custom Event used to inject user voice input as if it was typed
 class UserInputEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
@@ -27,6 +29,7 @@ class UserInputEvent(QEvent):
         self.text = text
 
 
+# 🪟 ChatWindow — main UI container for chat interaction
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -38,10 +41,10 @@ class ChatWindow(QWidget):
 
         self.layout = QVBoxLayout(self)
 
-        # === Scroll area ===
+        # === 💬 Scroll Area for Messages ===
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("background-color: #eaeaea;")
+        self.scroll_area.setStyleSheet("background-color: #181818;")
 
         self.scroll_content = QFrame()
         self.scroll_content.setStyleSheet("background-color: transparent;")
@@ -55,25 +58,23 @@ class ChatWindow(QWidget):
         self.scroll_content_layout = QVBoxLayout(self.scroll_content)
         self.scroll_content_layout.setContentsMargins(0, 0, 0, 0)
         self.scroll_content_layout.addWidget(self.inner_container)
-        self.scroll_layout = self.inner_layout
+        self.scroll_layout = self.inner_layout  # alias
 
         self.layout.addWidget(self.scroll_area)
 
-        # === Input Area ===
+        # === 🎙️ Input + Toggle Buttons ===
         self.input_row = QHBoxLayout()
 
-        # Entry box (always shown)
         self.entry = QLineEdit()
         self.entry.setFixedHeight(40)
         self.entry.setPlaceholderText("Start typing...")
         self.entry.returnPressed.connect(self.send_message)
 
-        # Send button
         self.send_button = QPushButton("Send")
         self.send_button.setFixedHeight(40)
         self.send_button.clicked.connect(self.send_message)
 
-        # Mic toggle
+        # Mic & Keyboard Toggle Buttons
         self.mic_button = QPushButton()
         self.mic_button.setIcon(QIcon("chat_ui/assets/mic.svg"))
         self.mic_button.setIconSize(QSize(18, 18))
@@ -81,7 +82,6 @@ class ChatWindow(QWidget):
         self.mic_button.setCheckable(True)
         self.mic_button.clicked.connect(lambda: self.set_input_mode("mic"))
 
-        # Keyboard toggle
         self.keyboard_button = QPushButton()
         self.keyboard_button.setIcon(QIcon("chat_ui/assets/keyboard.svg"))
         self.keyboard_button.setIconSize(QSize(18, 18))
@@ -103,7 +103,7 @@ class ChatWindow(QWidget):
         self.mic_button.setStyleSheet(toggle_style)
         self.keyboard_button.setStyleSheet(toggle_style)
 
-        # Layout
+        # Final layout
         self.input_row.addWidget(self.mic_button)
         self.input_row.addWidget(self.keyboard_button)
         self.input_row.addWidget(self.entry)
@@ -111,9 +111,10 @@ class ChatWindow(QWidget):
 
         self.layout.addLayout(self.input_row)
 
-        # Start in keyboard mode
+        # Default mode = keyboard
         self.set_input_mode("keyboard")
 
+    # 🧩 Toggles between mic and keyboard modes
     def set_input_mode(self, mode):
         self.voice_mode = (mode == "mic")
 
@@ -136,11 +137,16 @@ class ChatWindow(QWidget):
             self.mic_button.setChecked(False)
             self.keyboard_button.setChecked(True)
 
+    # 📡 Handles live status updates from VoiceRecorder
     def update_status(self, text):
-        self.entry.setPlaceholderText(text)
-        if text == "Stopped.":
+        text_clean = text.lower().strip()
+        print(f"📣 update_status received: {text_clean}")
+        if "stopped" in text_clean:
             self.set_input_mode("keyboard")
+        else:
+            self.entry.setPlaceholderText(text)
 
+    # 💬 Adds a new ChatBubble to the chat area
     def add_bubble(self, message, sender="user"):
         bubble = ChatBubble(
             message=message,
@@ -150,11 +156,13 @@ class ChatWindow(QWidget):
         self.scroll_layout.addWidget(bubble)
         QTimer.singleShot(50, self.scroll_to_bottom)
 
+    # 🔽 Auto-scroll to bottom after new message
     def scroll_to_bottom(self):
         self.scroll_area.verticalScrollBar().setValue(
             self.scroll_area.verticalScrollBar().maximum()
         )
 
+    # 📤 Send typed message to API and clear input
     def send_message(self):
         message = self.entry.text().strip()
         if not message:
@@ -163,6 +171,7 @@ class ChatWindow(QWidget):
         self.entry.clear()
         threading.Thread(target=self.fetch_reply, args=(message,), daemon=True).start()
 
+    # 📥 Send POST request to backend and queue response
     def fetch_reply(self, message):
         try:
             response = requests.post(
@@ -182,6 +191,7 @@ class ChatWindow(QWidget):
 
         QCoreApplication.postEvent(self, ReplyEvent(reply_text))
 
+    # 🎯 Handle custom events like voice input or server replies
     def event(self, event):
         if event.type() == ReplyEvent.EVENT_TYPE:
             self.add_bubble(event.text, sender="ai")
@@ -192,5 +202,6 @@ class ChatWindow(QWidget):
             return True
         return super().event(event)
 
+    # 🎤 VoiceRecorder callback → triggers fake user input event
     def voice_input_callback(self, transcript):
         QCoreApplication.postEvent(self, UserInputEvent(transcript))
