@@ -140,3 +140,4 @@ class VoiceRecorder:
     def stop(self):
         print("⏹️ Manual stop called")
         self.recording = False
+

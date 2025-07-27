@@ -17,7 +17,10 @@ def main():
     chat = ChatWindow()
     window.setCentralWidget(chat)
     window.setWindowTitle("NeuraForm - AI Chat")
-    window.resize(600, 500)
+    window.resize(900, 700)
+    window.move(
+        app.primaryScreen().availableGeometry().center() - window.rect().center()
+    )
     window.show()
     sys.exit(app.exec())
 
