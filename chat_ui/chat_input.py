@@ -61,7 +61,29 @@ class ChatInput(QWidget):
                 border-radius: 6px;
                 font-size: 14px;
             }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 8px;
+                margin: 4px 0;
+            }
+            QScrollBar::handle:vertical {
+                background: #888;
+                border-radius: 4px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #aaa;
+            }
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {
+                background: none;
+            }
         """)
+
         self.entry.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         self.entry.setMinimumHeight(36)
         self.entry.setMaximumHeight(120)
