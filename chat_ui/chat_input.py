@@ -112,21 +112,13 @@ class ChatInput(QWidget):
         self.chat_toggle_button.setChecked(True)
         self.chat_toggle_button.clicked.connect(self.toggle_chat_window)
 
-        self.keyboard_button = QPushButton()
-        self.keyboard_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.keyboard_button.setIcon(QIcon("chat_ui/assets/keyboard.svg"))
-        self.keyboard_button.setIconSize(QSize(18, 18))
-        self.keyboard_button.setFixedSize(30, 30)
-        self.keyboard_button.setCheckable(True)
-        self.keyboard_button.clicked.connect(lambda: self.set_input_mode("keyboard"))
-
         self.mic_button = QPushButton()
         self.mic_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.mic_button.setIcon(QIcon("chat_ui/assets/mic.svg"))
         self.mic_button.setIconSize(QSize(18, 18))
         self.mic_button.setFixedSize(30, 30)
         self.mic_button.setCheckable(True)
-        self.mic_button.clicked.connect(lambda: self.set_input_mode("mic"))
+        self.mic_button.clicked.connect(self.toggle_mic)
 
         self.send_button = QPushButton()
         self.send_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -146,13 +138,13 @@ class ChatInput(QWidget):
                 border-radius: 6px;
             }
         """
-        for btn in [self.chat_toggle_button, self.mic_button, self.keyboard_button]:
+        for btn in [self.chat_toggle_button, self.mic_button]:
             btn.setStyleSheet(toggle_style)
 
         right_buttons.addWidget(self.chat_toggle_button)
-        right_buttons.addWidget(self.keyboard_button)
         right_buttons.addWidget(self.mic_button)
         right_buttons.addWidget(self.send_button)
+
 
         bottom_row.addLayout(left_buttons)
         bottom_row.addStretch()
@@ -176,10 +168,10 @@ class ChatInput(QWidget):
 
         if self.voice_mode:
             self.entry.setPlaceholderText("Listening...")
-            self.entry.setReadOnly(True)
             self.send_button.setEnabled(False)
+            self.mic_button.setIcon(QIcon("chat_ui/assets/stop.svg"))
             self.mic_button.setChecked(True)
-            self.keyboard_button.setChecked(False)
+
             self.recorder.continuous_mode = True
             self.recorder.start_recording_async(
                 self.voice_input_callback,
@@ -188,10 +180,10 @@ class ChatInput(QWidget):
         else:
             self.recorder.stop()
             self.entry.setPlaceholderText("Start typing...")
-            self.entry.setReadOnly(False)
             self.send_button.setEnabled(True)
+            self.mic_button.setIcon(QIcon("chat_ui/assets/mic.svg"))
             self.mic_button.setChecked(False)
-            self.keyboard_button.setChecked(True)
+
 
     def send_message(self):
         message = self.entry.toPlainText().strip()
@@ -204,6 +196,8 @@ class ChatInput(QWidget):
     def update_status(self, text):
         if "stopped" in text.lower():
             self.set_input_mode("keyboard")
+        elif "listening" in text.lower():
+            self.entry.setPlaceholderText("Listening…")
         else:
             self.entry.setPlaceholderText(text)
 
@@ -214,3 +208,10 @@ class ChatInput(QWidget):
         is_visible = self.chat_window.isVisible()
         self.chat_window.setVisible(not is_visible)
         self.chat_toggle_button.setChecked(not is_visible)
+
+    def toggle_mic(self):
+        if self.voice_mode:
+            self.set_input_mode("keyboard")
+        else:
+            self.set_input_mode("mic")
+
