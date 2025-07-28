@@ -227,3 +227,4 @@ class ChatInput(QWidget):
 
     def is_voice_enabled(self):
         return self.voice_toggle.is_enabled()
+

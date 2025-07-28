@@ -99,7 +99,7 @@ class ChatWindow(QWidget):
 
         self.layout.addWidget(self.scroll_area)
 
-        self.input_box = None  # Set externally
+        self.input_box = None  # Will be set externally
 
     def add_bubble(self, message, sender="user"):
         bubble = ChatBubble(
@@ -117,14 +117,17 @@ class ChatWindow(QWidget):
 
     def fetch_reply(self, message):
         QCoreApplication.postEvent(self, TypingEvent())
-
+    
+        voice_enabled = self.input_box.is_voice_enabled() if self.input_box else False  # ✅ define once
+    
         try:
             response = requests.post(
                 "http://localhost:8000/chat/",
                 json={
                     "user_id": "demo-user",
                     "message": message,
-                    "mode": "safe"
+                    "mode": "safe",
+                    "voice_enabled": voice_enabled  # ✅ now included properly
                 }
             )
             if response.status_code == 200:
@@ -133,15 +136,15 @@ class ChatWindow(QWidget):
                 reply_text = f"(Error {response.status_code})"
         except Exception as e:
             reply_text = f"(Request failed: {e})"
-
-        if self.input_box and self.input_box.is_voice_enabled():
+    
+        if voice_enabled:
             def on_start():
                 QCoreApplication.postEvent(self, ReplyEvent(reply_text))
-
+    
             threading.Thread(
-                target=self.voice_player.play_reply,
+                target=self.voice_player.play_reply_from_backend,
                 args=(reply_text,),
-                kwargs={"on_start": on_start},
+                kwargs={"voice_enabled": True, "on_start": on_start},
                 daemon=True
             ).start()
         else:
@@ -152,16 +155,13 @@ class ChatWindow(QWidget):
             print("[ReplyEvent] AI reply received:", event.text)
             self.remove_typing_bubble()
             self.add_bubble(event.text, sender="ai")
-            print("[ReplyEvent] Final AI bubble added")
             return True
 
         elif event.type() == TypingEvent.EVENT_TYPE:
-            print("[TypingEvent] GUI thread received typing request")
             self.insert_typing_bubble()
             return True
 
         elif event.type() == UserInputEvent.EVENT_TYPE:
-            print("[UserInputEvent] Message sent:", event.text)
             self.add_bubble(event.text, sender="user")
             threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
             return True
@@ -171,8 +171,6 @@ class ChatWindow(QWidget):
     def insert_typing_bubble(self):
         if self.typing_label:
             return
-
-        print("[TypingBubble] Inserting QLabel (no bubble)")
 
         self.typing_label = QLabel(f"{self.persona_name} is thinking")
         self.typing_label.setStyleSheet("""
@@ -205,6 +203,5 @@ class ChatWindow(QWidget):
         self.typing_dots = (self.typing_dots + 1) % 4
         dots = "." * self.typing_dots
         updated_message = f"{self.persona_name} is thinking{dots}"
-        print("[TypingBubble] Updated message:", updated_message)
         self.typing_label.setText(updated_message)
         self.scroll_to_bottom()
