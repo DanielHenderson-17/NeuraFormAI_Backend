@@ -8,7 +8,7 @@ load_dotenv()
 
 API_KEY = os.getenv("OPENAI_API_KEY")
 API_BASE = os.getenv("OPENAI_API_BASE", "https://openrouter.ai/api")
-MODEL = os.getenv("OPENAI_MODEL", "openrouter/cinematika-7b")
+MODEL = os.getenv("OPENAI_MODEL", "openai/gpt-3.5-turbo")
 PERSONA_PATH = os.getenv("PERSONA_PATH", "app/config/characters/default_persona.yml")  # ✅ Generic default
 
 HEADERS = {

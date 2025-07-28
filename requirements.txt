@@ -1,6 +1,6 @@
 # GUI and base
 PyQt6
-uvicorn[standard]
+uvicorn[standard]>=0.29.0
 
 # Voice recording
 sounddevice
