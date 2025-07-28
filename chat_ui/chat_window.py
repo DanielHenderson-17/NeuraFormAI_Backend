@@ -117,9 +117,9 @@ class ChatWindow(QWidget):
 
     def fetch_reply(self, message):
         QCoreApplication.postEvent(self, TypingEvent())
-    
-        voice_enabled = self.input_box.is_voice_enabled() if self.input_box else False  # ✅ define once
-    
+
+        voice_enabled = self.input_box.is_voice_enabled() if self.input_box else False 
+
         try:
             response = requests.post(
                 "http://localhost:8000/chat/",
@@ -127,7 +127,7 @@ class ChatWindow(QWidget):
                     "user_id": "demo-user",
                     "message": message,
                     "mode": "safe",
-                    "voice_enabled": voice_enabled  # ✅ now included properly
+                    "voice_enabled": voice_enabled
                 }
             )
             if response.status_code == 200:
@@ -136,11 +136,11 @@ class ChatWindow(QWidget):
                 reply_text = f"(Error {response.status_code})"
         except Exception as e:
             reply_text = f"(Request failed: {e})"
-    
+
         if voice_enabled:
             def on_start():
                 QCoreApplication.postEvent(self, ReplyEvent(reply_text))
-    
+
             threading.Thread(
                 target=self.voice_player.play_reply_from_backend,
                 args=(reply_text,),
