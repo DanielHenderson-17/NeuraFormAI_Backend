@@ -41,19 +41,19 @@ class ChatBubble(QWidget):
                 content_layout.addWidget(CodeBlockWidget(code, lang))
             else:
                 if part.strip():
-                    label = QLabel(f"{self.sender_name}: {part.strip()}")
-                    label.setWordWrap(True)
-                    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-                    label.setStyleSheet(f"""
+                    self.label = QLabel(f"{self.sender_name}: {part.strip()}")  # ← store it
+                    self.label.setWordWrap(True)
+                    self.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                    self.label.setStyleSheet(f"""
                         background-color: {bubble_bg};
                         color: {text_color};
                         border: 1px solid #ccc;
                         border-radius: 16px;
                         padding: 12px 16px;
                     """)
-                    label.setMinimumHeight(32)
-                    label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-                    content_layout.addWidget(label)
+                    self.label.setMinimumHeight(32)
+                    self.label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+                    content_layout.addWidget(self.label)
             is_code = not is_code
 
         timestamp = QLabel(datetime.now().strftime("%I:%M %p").lstrip("0"))
@@ -76,3 +76,8 @@ class ChatBubble(QWidget):
         else:
             main_layout.addWidget(bubble_container)
             main_layout.addStretch()
+
+    def set_message(self, new_message):
+        self.message = new_message
+        if hasattr(self, "label") and self.label:
+            self.label.setText(f"{self.sender_name}: {new_message}")

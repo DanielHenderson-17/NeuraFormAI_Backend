@@ -1,11 +1,11 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QScrollArea, QFrame
+    QWidget, QVBoxLayout, QScrollArea, QFrame, QLabel
 )
 from PyQt6.QtCore import Qt, QEvent, QCoreApplication, QTimer
 from chat_ui.chat_bubble import ChatBubble
 from chat_ui.persona_loader import get_persona_name
 from chat_ui.voice_recorder import VoiceRecorder
-from chat_ui.components.VoicePlayer import VoicePlayer  # ✅ Voice playback
+from chat_ui.components.VoicePlayer import VoicePlayer
 
 import threading
 import requests
@@ -27,6 +27,13 @@ class UserInputEvent(QEvent):
         self.text = text
 
 
+class TypingEvent(QEvent):
+    EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
+
+    def __init__(self):
+        super().__init__(TypingEvent.EVENT_TYPE)
+
+
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -36,7 +43,7 @@ class ChatWindow(QWidget):
         self.persona_name = get_persona_name()
         self.setWindowTitle("NeuraForm - AI Chat")
         self.recorder = VoiceRecorder()
-        self.voice_player = VoicePlayer()  # ✅ Initialize player
+        self.voice_player = VoicePlayer()
 
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -86,10 +93,13 @@ class ChatWindow(QWidget):
         self.scroll_content_layout.addWidget(self.inner_container)
         self.scroll_layout = self.inner_layout
 
+        self.typing_label = None
+        self.typing_timer = None
+        self.typing_dots = 0
+
         self.layout.addWidget(self.scroll_area)
 
-        # 🔌 This is set from main.py:
-        self.input_box = None
+        self.input_box = None  # Set externally
 
     def add_bubble(self, message, sender="user"):
         bubble = ChatBubble(
@@ -106,6 +116,8 @@ class ChatWindow(QWidget):
         )
 
     def fetch_reply(self, message):
+        QCoreApplication.postEvent(self, TypingEvent())
+
         try:
             response = requests.post(
                 "http://localhost:8000/chat/",
@@ -137,10 +149,62 @@ class ChatWindow(QWidget):
 
     def event(self, event):
         if event.type() == ReplyEvent.EVENT_TYPE:
+            print("[ReplyEvent] AI reply received:", event.text)
+            self.remove_typing_bubble()
             self.add_bubble(event.text, sender="ai")
+            print("[ReplyEvent] Final AI bubble added")
             return True
+
+        elif event.type() == TypingEvent.EVENT_TYPE:
+            print("[TypingEvent] GUI thread received typing request")
+            self.insert_typing_bubble()
+            return True
+
         elif event.type() == UserInputEvent.EVENT_TYPE:
+            print("[UserInputEvent] Message sent:", event.text)
             self.add_bubble(event.text, sender="user")
             threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
             return True
+
         return super().event(event)
+
+    def insert_typing_bubble(self):
+        if self.typing_label:
+            return
+
+        print("[TypingBubble] Inserting QLabel (no bubble)")
+
+        self.typing_label = QLabel(f"{self.persona_name} is thinking")
+        self.typing_label.setStyleSheet("""
+            color: gray;
+            font-size: 14px;
+            padding: 8px 12px;
+            margin-left: 16px;
+        """)
+        self.scroll_layout.addWidget(self.typing_label)
+        self.scroll_to_bottom()
+
+        self.typing_timer = QTimer()
+        self.typing_timer.timeout.connect(self.update_typing_ellipsis)
+        self.typing_timer.start(500)
+
+    def remove_typing_bubble(self):
+        if self.typing_timer:
+            self.typing_timer.stop()
+            self.typing_timer = None
+        if self.typing_label:
+            self.scroll_layout.removeWidget(self.typing_label)
+            self.typing_label.deleteLater()
+            self.typing_label = None
+        self.typing_dots = 0
+
+    def update_typing_ellipsis(self):
+        if not self.typing_label:
+            return
+
+        self.typing_dots = (self.typing_dots + 1) % 4
+        dots = "." * self.typing_dots
+        updated_message = f"{self.persona_name} is thinking{dots}"
+        print("[TypingBubble] Updated message:", updated_message)
+        self.typing_label.setText(updated_message)
+        self.scroll_to_bottom()
