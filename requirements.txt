@@ -1,4 +1,19 @@
-faster-whisper
+# GUI and base
+PyQt6
+uvicorn[standard]
+
+# Voice recording
 sounddevice
 numpy
 webrtcvad
+
+# Transcription
+faster-whisper
+
+# Voice output
+elevenlabs
+pydub
+
+# Miscellaneous
+python-dotenv
+fastapi

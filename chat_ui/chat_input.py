@@ -3,7 +3,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QSize, QCoreApplication, Qt
 from PyQt6.QtGui import QIcon, QKeyEvent
+
 from chat_ui.voice_recorder import VoiceRecorder
+from chat_ui.components.VoiceToggleSwitch import VoiceToggleSwitch
 from chat_ui.chat_window import UserInputEvent
 
 
@@ -38,6 +40,16 @@ class ChatInput(QWidget):
         outer_layout.setContentsMargins(0, 0, 0, 20)
         outer_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
 
+        # === Voice toggle row ===
+        toggle_row = QHBoxLayout()
+        toggle_row.setContentsMargins(0, 0, 6, 0)
+        toggle_row.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self.voice_toggle = VoiceToggleSwitch()
+        toggle_row.addWidget(self.voice_toggle)
+        outer_layout.addLayout(toggle_row)
+
+        # === Chat input bubble ===
         self.bubble = QFrame()
         self.bubble.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
         self.bubble.setStyleSheet("""
@@ -145,7 +157,6 @@ class ChatInput(QWidget):
         right_buttons.addWidget(self.mic_button)
         right_buttons.addWidget(self.send_button)
 
-
         bottom_row.addLayout(left_buttons)
         bottom_row.addStretch()
         bottom_row.addLayout(right_buttons)
@@ -184,7 +195,6 @@ class ChatInput(QWidget):
             self.mic_button.setIcon(QIcon("chat_ui/assets/mic.svg"))
             self.mic_button.setChecked(False)
 
-
     def send_message(self):
         message = self.entry.toPlainText().strip()
         if not message:
@@ -215,3 +225,5 @@ class ChatInput(QWidget):
         else:
             self.set_input_mode("mic")
 
+    def is_voice_enabled(self):
+        return self.voice_toggle.is_enabled()

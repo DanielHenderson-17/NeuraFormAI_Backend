@@ -47,6 +47,7 @@ def main():
 
     # Wire up chat input
     chat_input.chat_window = chat_window
+    chat_window.input_box = chat_input
 
     # ✅ Set 1:2:1 column proportions
     layout.setColumnStretch(0, 1)
