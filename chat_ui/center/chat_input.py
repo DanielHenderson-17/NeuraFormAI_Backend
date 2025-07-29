@@ -6,7 +6,7 @@ from PyQt6.QtGui import QIcon, QKeyEvent
 
 from chat_ui.voice_recorder import VoiceRecorder
 from chat_ui.components.VoiceToggleSwitch import VoiceToggleSwitch
-from chat_ui.chat_window import UserInputEvent
+from chat_ui.right.chat_window import UserInputEvent
 
 
 class ChatInputTextEdit(QTextEdit):

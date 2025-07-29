@@ -1,16 +1,13 @@
 import sys
 from pathlib import Path
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QGridLayout
-)
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
-from chat_ui.chat_window import ChatWindow
-from chat_ui.chat_input import ChatInput
-from chat_ui.vrm_container import VRMContainer
-from chat_ui.past_chat_container import PastChatContainer
 
-# Add parent path for module resolution
+from chat_ui.center.center_column_container import CenterColumnContainer
+from chat_ui.left.left_column_container import LeftColumnContainer
+from chat_ui.right.right_column_container import RightColumnContainer
+
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 def main():
@@ -26,37 +23,26 @@ def main():
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
 
-    # === Left column (past chats, div1)
-    past_chat = PastChatContainer()
-    past_chat.setStyleSheet("background-color: #1e1e1e;")
-    layout.addWidget(past_chat, 0, 0, 2, 1)  # spans 2 rows, col 0
+    # === Left column
+    left_column = LeftColumnContainer()
+    layout.addWidget(left_column, 0, 0, 2, 1)
 
-    # === Center column (VRM container + chat input, div4 + div5)
-    vrm_container = VRMContainer()
-    vrm_container.setStyleSheet("background-color: #1e1e1e;")
-    layout.addWidget(vrm_container, 0, 1)
+    # === Center column (now includes chat_input internally)
+    center_column = CenterColumnContainer()
+    layout.addWidget(center_column, 0, 1, 2, 1)  # spans both rows
 
-    chat_input = ChatInput(None, parent=main_widget)
-    chat_input.setStyleSheet("background-color: #1e1e1e;")
-    layout.addWidget(chat_input, 1, 1, alignment=Qt.AlignmentFlag.AlignBottom)
+    # === Right column
+    right_column = RightColumnContainer()
+    layout.addWidget(right_column, 0, 2, 2, 1)
 
-    # === Right column (chat window, div2)
-    chat_window = ChatWindow()
-    chat_window.setStyleSheet("background-color: #1e1e1e;")
-    layout.addWidget(chat_window, 0, 2, 2, 1)  # spans 2 rows, col 2
+    # Wire up
+    center_column.chat_input.chat_window = right_column.chat_window
+    right_column.chat_window.input_box = center_column.chat_input
 
-    # Wire up chat input
-    chat_input.chat_window = chat_window
-    chat_window.input_box = chat_input
-
-    # ✅ Set 1:2:1 column proportions
+    # ✅ Column proportions
     layout.setColumnStretch(0, 1)
     layout.setColumnStretch(1, 2)
     layout.setColumnStretch(2, 1)
-
-    # ✅ Set 3:1 row proportions (VRM:Input = 75%:25%)
-    layout.setRowStretch(0, 3)
-    layout.setRowStretch(1, 1)
 
     window.setCentralWidget(main_widget)
     window.move(app.primaryScreen().availableGeometry().center() - window.rect().center())

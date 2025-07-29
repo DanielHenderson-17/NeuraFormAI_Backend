@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QScrollArea, QFrame, QLabel
 )
 from PyQt6.QtCore import Qt, QEvent, QCoreApplication, QTimer
-from chat_ui.chat_bubble import ChatBubble
+from chat_ui.right.chat_bubble import ChatBubble
 from chat_ui.persona_loader import get_persona_name
 from chat_ui.voice_recorder import VoiceRecorder
 from chat_ui.components.VoicePlayer import VoicePlayer

@@ -8,8 +8,7 @@ class PastChatContainer(QFrame):
 
         self.setStyleSheet("""
             QFrame {
-                background-color: #121212;
-                border: 2px dashed teal;
+                background-color: #2c2c2c;
             }
         """)
 
