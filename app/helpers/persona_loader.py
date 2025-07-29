@@ -1,11 +1,9 @@
 import yaml
 from pathlib import Path
 
-def load_persona(file_path: str) -> list:
+def load_persona(file_path: str) -> dict:
     """
-    Loads a persona YAML file and converts it into structured messages
-    for prompt engineering. Examples are provided as style guidance only
-    and will not be treated as active conversation turns.
+    Loads persona YAML and returns structured messages and voice ID.
     """
     path = Path(file_path)
     if not path.exists():
@@ -19,9 +17,9 @@ def load_persona(file_path: str) -> list:
 
     description = data["description"]
     name = data.get("name", "The AI")
+    voice_id = data.get("voice_id", None)
     examples = data.get("style_examples", data.get("examples", []))
 
-    # Core system message
     messages = [{
         "role": "system",
         "content": (
@@ -33,7 +31,6 @@ def load_persona(file_path: str) -> list:
         )
     }]
 
-    # Add examples as system-level guidance only
     for ex in examples:
         if "user" in ex and "assistant" in ex:
             messages.append({
@@ -45,4 +42,7 @@ def load_persona(file_path: str) -> list:
                 )
             })
 
-    return messages
+    return {
+        "messages": messages,
+        "voice_id": voice_id
+    }

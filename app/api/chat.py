@@ -10,13 +10,14 @@ class ChatRequest(BaseModel):
     user_id: str
     message: str
     mode: str
-    voice_enabled: bool = True  # ✅ Toggle flag
+    voice_enabled: bool = True 
 
 class ChatResponse(BaseModel):
     reply: str
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    voice_id: str | None = None 
 
 @router.post("/", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -39,14 +40,15 @@ async def chat_speak_endpoint(request: ChatRequest):
     )
 
     if not request.voice_enabled:
-        print("🔇 [BACKEND] voice_enabled is FALSE — skipping ElevenLabs. No API call made.")
+        print("🔇 [BACKEND] voice_enabled is FALSE — skipping ElevenLabs.")
         return JSONResponse(
             content={"skipped": True, "reason": "voice disabled"},
             status_code=200
         )
 
-    print(f"🗣️ [BACKEND] voice_enabled is TRUE — sending to ElevenLabs: \"{result['reply'][:60]}...\"")
-    audio_stream = synthesize_reply_as_stream(result["reply"])
+    voice_id = result.get("voice_id")
+    print(f"🗣️ Sending to ElevenLabs: \"{result['reply'][:60]}...\" | voice_id={voice_id}")
+    audio_stream = synthesize_reply_as_stream(result["reply"], voice_id)
     return StreamingResponse(
         content=audio_stream,
         media_type="audio/mpeg",
@@ -55,8 +57,11 @@ async def chat_speak_endpoint(request: ChatRequest):
 
 @router.post("/speak-from-text")
 def speak_from_text(reply: str = Body(..., embed=True)):
-    print(f"📨 [BACKEND] /speak-from-text called with reply: \"{reply[:60]}...\"")
-    audio_stream = synthesize_reply_as_stream(reply)
+    # Get persona voice via ChatEngine helper
+    voice_id = ChatEngine.get_voice_id()
+
+    print(f"📨 [/speak-from-text] called with reply: \"{reply[:60]}...\" | voice_id={voice_id}")
+    audio_stream = synthesize_reply_as_stream(reply, voice_id)
     return StreamingResponse(
         content=audio_stream,
         media_type="audio/mpeg",
