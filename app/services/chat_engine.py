@@ -1,25 +1,50 @@
-from pyexpat.errors import messages
 import httpx
 import os
 from dotenv import load_dotenv
-from app.helpers.persona_loader import load_persona  # ✅ Load from YAML
+from app.helpers.persona_loader import load_persona
 
 load_dotenv()
 
 API_KEY = os.getenv("OPENAI_API_KEY")
 API_BASE = os.getenv("OPENAI_API_BASE", "https://openrouter.ai/api")
 MODEL = os.getenv("OPENAI_MODEL", "openai/gpt-3.5-turbo")
-PERSONA_PATH = os.getenv("PERSONA_PATH", "app/config/characters/default_persona.yml")  # ✅ Generic default
+PERSONA_PATH = os.getenv("PERSONA_PATH", "app/config/characters/default_persona.yml")
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json",
-    "HTTP-Referer": "http://localhost",  # Helps with OpenRouter tracking
-    "X-Title": "NeuraFormAI",            # Optional but useful
+    "HTTP-Referer": "http://localhost",
+    "X-Title": "NeuraFormAI",
 }
 
 
 class ChatEngine:
+    _persona_cache = {}  # { "default": { "messages": [...], "last_loaded": timestamp } }
+
+    @staticmethod
+    def _get_persona():
+        """
+        Load and cache the persona.
+        Auto-refreshes if the YAML file changes.
+        For now, a single global persona is used.
+        """
+        cache_key = "default"
+        mtime = os.path.getmtime(PERSONA_PATH)
+
+        if (cache_key not in ChatEngine._persona_cache or
+            ChatEngine._persona_cache[cache_key]["last_loaded"] < mtime):
+            print("🔄 Loading persona from YAML...")
+            persona_messages = load_persona(PERSONA_PATH)
+            ChatEngine._persona_cache[cache_key] = {
+                "messages": persona_messages,
+                "last_loaded": mtime,
+            }
+        else:
+            print("✅ Using cached persona")
+
+        # Return a copy to avoid mutating the cached messages
+        return ChatEngine._persona_cache[cache_key]["messages"].copy()
+
     @staticmethod
     async def generate_reply(user_id: str, message: str, mode: str) -> dict:
         if mode == "safe":
@@ -34,11 +59,9 @@ class ChatEngine:
 
     @staticmethod
     async def _use_openrouter(message: str) -> dict:
-        # ✅ Load persona messages from YAML
-        messages = load_persona(PERSONA_PATH)
+        messages = ChatEngine._get_persona()
         messages.append({"role": "user", "content": message})
 
-        # ✅ Debug output
         print("=== Final Messages Sent ===")
         for m in messages:
             print(f"{m['role'].upper()}: {m['content']}\n")
