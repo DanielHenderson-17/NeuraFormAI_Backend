@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QApplication
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QEvent
+from PyQt6.QtGui import QCursor
 from chat_ui.left.user_menu.user_menu_widget import UserMenuWidget
 
 class UserContainer(QFrame):
@@ -21,6 +22,7 @@ class UserContainer(QFrame):
         self.user_menu.setMaximumHeight(0)
 
         self.avatar = QLabel("img")
+        self.avatar.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.avatar.setFixedSize(30, 30)
         self.avatar.setStyleSheet("""
             background-color: blue;
@@ -46,7 +48,15 @@ class UserContainer(QFrame):
         QApplication.instance().installEventFilter(self)
 
     def toggle_menu(self, event):
-        self.menu_visible = not self.menu_visible
+        current_height = self.user_menu.maximumHeight()
+        target_height = self.user_menu.sizeHint().height()
+
+        # ✅ If menu is currently expanded → close it
+        if current_height >= target_height:
+            self.menu_visible = False
+        else:
+            self.menu_visible = True
+
         self.animate_menu()
 
     def animate_menu(self):
@@ -55,10 +65,9 @@ class UserContainer(QFrame):
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
         if self.menu_visible:
-            self.user_menu.setMaximumHeight(9999)
+            # ✅ Remove resetting height to 0 before opening
             target_height = self.user_menu.sizeHint().height()
-            self.user_menu.setMaximumHeight(0)
-            animation.setStartValue(0)
+            animation.setStartValue(self.user_menu.maximumHeight())
             animation.setEndValue(target_height)
         else:
             animation.setStartValue(self.user_menu.height())
@@ -66,6 +75,7 @@ class UserContainer(QFrame):
 
         animation.start()
         self.animation = animation
+
 
     def eventFilter(self, watched, event):
         if self.menu_visible and event.type() == QEvent.Type.MouseButtonPress:

@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QSizePolicy
-from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtGui import QPainter, QColor, QCursor
+from PyQt6.QtCore import Qt
 
 class UserMenuWidget(QWidget):
     def __init__(self, parent=None):
@@ -16,15 +17,18 @@ class UserMenuWidget(QWidget):
         btn_settings = QPushButton("Settings")
         btn_settings.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn_settings.setStyleSheet(self._button_style())
+        btn_settings.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
-        btn_models = QPushButton("Models")
+        btn_models = QPushButton("Change NeuraPal")
         btn_models.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn_models.setStyleSheet(self._button_style())
+        btn_models.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         btn_logout = QPushButton("Logout")
         btn_logout.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn_logout.setStyleSheet(self._button_style())
-
+        btn_logout.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        
         layout.addWidget(btn_settings)
         layout.addWidget(btn_models)
         layout.addWidget(btn_logout)
