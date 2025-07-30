@@ -4,7 +4,7 @@ import asyncio
 from app.services.openrouter_credits import get_openrouter_credits
 
 app = FastAPI(
-    title="NeuraFormAI",
+    title="NeuraPalsAI",
     description="Modular AI Companion Backend",
     version="0.1.0",
 )
