@@ -9,7 +9,7 @@ API_KEY = os.getenv("OPENAI_API_KEY")
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "HTTP-Referer": "http://localhost",
-    "X-Title": "NeuraFormAI"
+    "X-Title": "NeuraPalsAI"
 }
 
 async def get_openrouter_credits():

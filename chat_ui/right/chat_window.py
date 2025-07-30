@@ -45,7 +45,7 @@ class ChatWindow(QWidget):
         self.persona_name = active_persona.get("name", "Assistant")
         print(f"🟢 [ChatWindow] Persona name set to: {self.persona_name}")
 
-        self.setWindowTitle("NeuraForm - AI Chat")
+        self.setWindowTitle("NeuraPals - AI Chat")
         self.recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
 

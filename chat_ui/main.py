@@ -15,7 +15,7 @@ def main():
     app.setWindowIcon(QIcon("chat_ui/assets/neuraform_icon.png"))
 
     window = QMainWindow()
-    window.setWindowTitle("NeuraForm - AI Chat")
+    window.setWindowTitle("NeuraPals - AI Chat")
     window.resize(1400, 700)
 
     main_widget = QWidget()
