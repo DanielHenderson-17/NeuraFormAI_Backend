@@ -1,6 +1,6 @@
 import pytest
 from PyQt6.QtWidgets import QApplication
-from chat_ui.chat_bubble import ChatBubble
+from chat_ui.right.chat_bubble import ChatBubble
 
 
 # 🧪 Pytest fixture to initialize QApplication (required for Qt widgets)
