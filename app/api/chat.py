@@ -56,14 +56,27 @@ async def chat_speak_endpoint(request: ChatRequest):
     )
 
 @router.post("/speak-from-text")
-def speak_from_text(reply: str = Body(..., embed=True)):
-    # Get persona voice via ChatEngine helper
-    voice_id = ChatEngine.get_voice_id()
+def speak_from_text(
+    user_id: str = Body(..., embed=True),
+    reply: str = Body(..., embed=True)
+):
+    """
+    Converts a given reply text to speech using the active persona's voice.
+    Requires both user_id and reply in the JSON body.
+    """
+    print(f"🎙️ [Backend] speak-from-text called for user_id={user_id}")
+    print(f"📨 Payload: \"{reply[:60]}...\"")
 
-    print(f"📨 [/speak-from-text] called with reply: \"{reply[:60]}...\" | voice_id={voice_id}")
+    # Get persona voice via ChatEngine helper (per user session)
+    voice_id = ChatEngine.get_voice_id(user_id)
+    print(f"🗣️ Using voice_id={voice_id}")
+
+    # Generate and stream audio
     audio_stream = synthesize_reply_as_stream(reply, voice_id)
     return StreamingResponse(
         content=audio_stream,
         media_type="audio/mpeg",
         status_code=200
     )
+
+

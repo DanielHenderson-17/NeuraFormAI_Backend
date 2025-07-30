@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from app.services.chat_engine import ChatEngine
-from .text_cleaner import sanitize_for_speech
+from ..helpers.text_cleaner import sanitize_for_speech
 
 # Load environment variables (only need API key now)
 env_path = Path(__file__).parent.parent / ".env"

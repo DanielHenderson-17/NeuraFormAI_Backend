@@ -4,6 +4,7 @@ import requests
 import numpy as np
 import sounddevice as sd
 from pydub import AudioSegment
+from chat_ui.services.persona_service import SessionManager
 
 # 🔧 Path to ffmpeg
 ffmpeg_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ffmpeg", "bin"))
@@ -31,11 +32,15 @@ class VoicePlayer:
             print("🎤 [VoicePlayer] Sending TTS for reply...")
 
             url = "http://localhost:8000/chat/speak-from-text"
-            payload = { "reply": text }
+            payload = {
+                "user_id": SessionManager.get_user_id(),
+                "reply": text
+            }
+            print(f"📨 [VoicePlayer] Payload: {payload}")
 
             with requests.post(url, json=payload, stream=True) as response:
-                print("✅ [VoicePlayer] Received TTS stream...")
                 response.raise_for_status()
+                print("✅ [VoicePlayer] Received TTS stream...")
 
                 buffer = io.BytesIO()
                 for chunk in response.iter_content(chunk_size=4096):

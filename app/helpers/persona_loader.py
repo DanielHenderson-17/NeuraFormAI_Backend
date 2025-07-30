@@ -46,3 +46,21 @@ def load_persona(file_path: str) -> dict:
         "messages": messages,
         "voice_id": voice_id
     }
+
+def load_persona_metadata(file_path: str) -> dict:
+    """
+    Loads only persona metadata (name, voice_id, vrm_model).
+    Does NOT build system messages.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Persona file not found: {file_path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    return {
+        "name": data.get("name", path.stem),
+        "voice_id": data.get("voice_id", None),
+        "vrm_model": data.get("vrm_model", None),
+    }

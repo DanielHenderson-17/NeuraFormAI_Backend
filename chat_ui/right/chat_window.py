@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QEvent, QCoreApplication, QTimer
 from chat_ui.right.chat_bubble import ChatBubble
-from chat_ui.persona_loader import get_persona_name
+from chat_ui.services.persona_service import PersonaService, SessionManager
 from chat_ui.voice_recorder import VoiceRecorder
 from chat_ui.components.VoicePlayer import VoicePlayer
 
@@ -40,7 +40,11 @@ class ChatWindow(QWidget):
 
         self.setMinimumWidth(100)
 
-        self.persona_name = get_persona_name()
+        active_persona = PersonaService.get_active_persona()
+        print(f"🟢 [ChatWindow] Active persona on startup: {active_persona}")
+        self.persona_name = active_persona.get("name", "Assistant")
+        print(f"🟢 [ChatWindow] Persona name set to: {self.persona_name}")
+
         self.setWindowTitle("NeuraForm - AI Chat")
         self.recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
@@ -102,6 +106,7 @@ class ChatWindow(QWidget):
         self.input_box = None  # Will be set externally
 
     def add_bubble(self, message, sender="user"):
+        print(f"💬 [ChatWindow] Adding bubble - Sender: {sender}, Persona: {self.persona_name}")
         bubble = ChatBubble(
             message=message,
             sender_name="You" if sender == "user" else self.persona_name,
@@ -116,15 +121,26 @@ class ChatWindow(QWidget):
         )
 
     def fetch_reply(self, message):
+        # 🔄 Refresh active persona first
+        user_id = SessionManager.get_user_id()
+        active_persona = PersonaService.get_active_persona()
+        new_name = active_persona.get("name", "Assistant")
+        if new_name != self.persona_name:
+            print(f"🔄 [ChatWindow] Persona changed from {self.persona_name} → {new_name}")
+            self.persona_name = new_name
+    
+        # Now show typing bubble
         QCoreApplication.postEvent(self, TypingEvent())
-
+    
         voice_enabled = self.input_box.is_voice_enabled() if self.input_box else False 
-
+    
+        print(f"🟢 [ChatWindow] Sending message for user_id={user_id}, Persona: {self.persona_name}")
+    
         try:
             response = requests.post(
                 "http://localhost:8000/chat/",
                 json={
-                    "user_id": "demo-user",
+                    "user_id": user_id,
                     "message": message,
                     "mode": "safe",
                     "voice_enabled": voice_enabled
@@ -136,11 +152,13 @@ class ChatWindow(QWidget):
                 reply_text = f"(Error {response.status_code})"
         except Exception as e:
             reply_text = f"(Request failed: {e})"
-
+    
+        print(f"🟢 [ChatWindow] Reply received: {reply_text}")
+    
         if voice_enabled:
             def on_start():
                 QCoreApplication.postEvent(self, ReplyEvent(reply_text))
-
+    
             threading.Thread(
                 target=self.voice_player.play_reply_from_backend,
                 args=(reply_text,),
@@ -152,7 +170,7 @@ class ChatWindow(QWidget):
 
     def event(self, event):
         if event.type() == ReplyEvent.EVENT_TYPE:
-            print("[ReplyEvent] AI reply received:", event.text)
+            print("[ReplyEvent] AI reply displayed:", event.text)
             self.remove_typing_bubble()
             self.add_bubble(event.text, sender="ai")
             return True
@@ -162,6 +180,7 @@ class ChatWindow(QWidget):
             return True
 
         elif event.type() == UserInputEvent.EVENT_TYPE:
+            print(f"🟢 [ChatWindow] User input event: {event.text}")
             self.add_bubble(event.text, sender="user")
             threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
             return True
