@@ -1,0 +1,316 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Voice Recorder Walkthrough\"\n",
+        "format: html\n",
+        "toc: true\n",
+        "toc-location: left\n",
+        "execute:\n",
+        "  echo: true\n",
+        "  eval: false\n",
+        "---\n",
+        "\n",
+        "# 🎙️ NeuraPals `voice_recorder.py` Walkthrough\n",
+        "\n",
+        "This walkthrough explains how the `VoiceRecorder` class captures microphone input, detects speech, and transcribes spoken words into text using Faster Whisper. Each section includes descriptive notes and the corresponding code snippet.\n",
+        "\n",
+        "---\n",
+        "\n",
+        "## 1️⃣ Imports and Setup\n",
+        "\n",
+        "We begin by importing all the necessary modules. `sounddevice` handles microphone input, `numpy` processes audio data, `webrtcvad` detects speech activity, and `faster_whisper` provides fast speech-to-text transcription."
+      ],
+      "id": "3d1dbfa3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import sounddevice as sd\n",
+        "import numpy as np\n",
+        "import queue\n",
+        "import threading\n",
+        "import webrtcvad\n",
+        "from faster_whisper import WhisperModel\n",
+        "import time"
+      ],
+      "id": "811e6d8e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 2️⃣ Class Initialization\n",
+        "\n",
+        "The `VoiceRecorder` class initializes with audio configuration settings, a speech detection model, and state variables to manage the recording process."
+      ],
+      "id": "31769c22"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "class VoiceRecorder:\n",
+        "    def __init__(self, model_name=\"base\", silence_duration=4.0, aggressiveness=3):\n",
+        "        self.sample_rate = 16000\n",
+        "        self.block_duration = 30\n",
+        "        self.block_size = int(self.sample_rate * self.block_duration / 1000)\n",
+        "        self.vad = webrtcvad.Vad(aggressiveness)\n",
+        "        self.audio_queue = queue.Queue()\n",
+        "        self.recording = False\n",
+        "        self.model = WhisperModel(model_name, compute_type=\"int8\", device=\"cpu\")\n",
+        "        self.silence_duration = silence_duration\n",
+        "        self._last_voice_time = time.time()\n",
+        "        self.continuous_mode = True\n",
+        "        self.status_callback = None\n",
+        "        self.max_empty_loops = 3"
+      ],
+      "id": "c99ec003",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 3️⃣ Audio Callback\n",
+        "\n",
+        "The `_callback` method is triggered every time an audio block is captured from the microphone. It queues the audio data for further processing."
+      ],
+      "id": "472d7877"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def _callback(self, indata, frames, time_info, status):\n",
+        "    if status:\n",
+        "        print(\"Status:\", status)\n",
+        "    audio_data = indata[:, 0]\n",
+        "    self.audio_queue.put(audio_data.copy())"
+      ],
+      "id": "0d6d6d69",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 4️⃣ Speech Detection\n",
+        "\n",
+        "This method converts the audio chunk into PCM format and checks if it contains speech using WebRTC's Voice Activity Detection (VAD)."
+      ],
+      "id": "70eca0c1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def _is_speech(self, chunk):\n",
+        "    pcm = (chunk * 32768).astype(np.int16).tobytes()\n",
+        "    return self.vad.is_speech(pcm, self.sample_rate)"
+      ],
+      "id": "c788db4a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 5️⃣ Recording Loop\n",
+        "\n",
+        "The `_record_until_silence` method continuously captures audio until a period of silence is detected, helping segment speech for transcription."
+      ],
+      "id": "3499065c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def _record_until_silence(self):\n",
+        "    if self.status_callback:\n",
+        "        self.status_callback(\"Listening...\")\n",
+        "    audio = []\n",
+        "    with sd.InputStream(\n",
+        "        channels=1,\n",
+        "        samplerate=self.sample_rate,\n",
+        "        blocksize=self.block_size,\n",
+        "        dtype=\"float32\",\n",
+        "        callback=self._callback\n",
+        "    ):\n",
+        "        self._last_voice_time = time.time()\n",
+        "        while self.recording:\n",
+        "            try:\n",
+        "                block = self.audio_queue.get(timeout=1)\n",
+        "            except queue.Empty:\n",
+        "                continue\n",
+        "            audio.append(block)\n",
+        "            if self._is_speech(block):\n",
+        "                self._last_voice_time = time.time()\n",
+        "            elif time.time() - self._last_voice_time > self.silence_duration:\n",
+        "                print(f\"⏹️ Silence detected — stopping chunk after {time.time() - self._last_voice_time:.2f}s\")\n",
+        "                break\n",
+        "    return np.concatenate(audio)"
+      ],
+      "id": "a5bdcc39",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 6️⃣ Transcription\n",
+        "\n",
+        "Once audio is recorded, this method uses Faster Whisper to transcribe speech into text and returns the final transcript."
+      ],
+      "id": "96b1ae1b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def _transcribe(self, audio):\n",
+        "    if self.status_callback:\n",
+        "        self.status_callback(\"Transcribing...\")\n",
+        "    print(\"🧠 Transcribing...\")\n",
+        "    segments, _ = self.model.transcribe(audio, language=\"en\")\n",
+        "    full_text = \" \".join(segment.text for segment in segments)\n",
+        "    print(\"📝 Transcript:\", full_text)\n",
+        "    return full_text"
+      ],
+      "id": "8f52e395",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 7️⃣ Main Recording Loop\n",
+        "\n",
+        "The main loop continuously records audio, transcribes it, and handles silent segments. If silence persists for multiple attempts, it auto-stops the recording."
+      ],
+      "id": "316d411b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def _run_loop(self, callback):\n",
+        "    empty_count = 0\n",
+        "    while self.recording:\n",
+        "        audio = self._record_until_silence()\n",
+        "        if not self.recording:\n",
+        "            break\n",
+        "        transcript = self._transcribe(audio).strip()\n",
+        "        if transcript:\n",
+        "            empty_count = 0\n",
+        "            callback(transcript)\n",
+        "        else:\n",
+        "            empty_count += 1\n",
+        "            print(f\"⚠️ Skipped empty transcript. ({empty_count}/{self.max_empty_loops})\")\n",
+        "            if self.status_callback:\n",
+        "                self.status_callback(f\"Silent ({empty_count}/{self.max_empty_loops})\")\n",
+        "        if empty_count >= self.max_empty_loops:\n",
+        "            print(\"🛑 Auto-stopping after too many silent loops.\")\n",
+        "            if self.status_callback:\n",
+        "                self.status_callback(\"Stopped.\")\n",
+        "            self.stop()\n",
+        "            return\n",
+        "        if not self.continuous_mode:\n",
+        "            break\n",
+        "    self.recording = False\n",
+        "    if self.status_callback:\n",
+        "        self.status_callback(\"Stopped.\")\n",
+        "    print(\"🛑 VoiceRecorder stopped\")"
+      ],
+      "id": "188ef713",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 8️⃣ Start Recording\n",
+        "\n",
+        "This method starts the voice recording process in a background thread to avoid blocking the main application."
+      ],
+      "id": "5f548350"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def start_recording_async(self, callback, on_status=None):\n",
+        "    if self.recording:\n",
+        "        print(\"⚠️ Already recording. Ignored.\")\n",
+        "        return\n",
+        "    self.recording = True\n",
+        "    self.status_callback = on_status\n",
+        "    thread = threading.Thread(target=self._run_loop, args=(callback,), daemon=True)\n",
+        "    thread.start()"
+      ],
+      "id": "20a41d81",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "\n",
+        "## 9️⃣ Stop Recording\n",
+        "\n",
+        "Stops the voice recorder, ensuring that no additional audio is captured or transcribed."
+      ],
+      "id": "4e5c8155"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def stop(self):\n",
+        "    print(\"⏹️ Manual stop called\")\n",
+        "    self.recording = False"
+      ],
+      "id": "b44b80c9",
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "C:\\Users\\Daniel\\workspace\\Work\\NeuraFormAI\\NeuraFormAI_Backend\\tts-venv\\share\\jupyter\\kernels\\python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

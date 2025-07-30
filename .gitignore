@@ -35,3 +35,8 @@ build/
 
 # Application-specific
 app/config/characters/
+
+# Quarto build caches
+.quarto/
+.quarto-cache/
+_freeze/

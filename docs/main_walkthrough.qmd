@@ -1,0 +1,138 @@
+---
+title: "Main.py Walkthrough"
+format: html
+toc: true
+toc-location: left
+execute:
+  echo: true
+  eval: false
+---
+
+# 🧠 NeuraPals `main.py` Walkthrough
+
+This walkthrough provides a detailed explanation of how `main.py` initializes and launches the NeuraPals application. Each section describes its purpose followed by the corresponding code.
+
+---
+
+## 1️⃣ Imports and Project Path Setup
+
+We begin by importing all the required PyQt modules for creating the application window and layout. We also adjust the Python path to ensure imports from other modules work correctly.
+
+```{python}
+import sys
+from pathlib import Path
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QSplashScreen
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QIcon, QPixmap
+
+from chat_ui.center.center_column_container import CenterColumnContainer
+from chat_ui.left.left_column_container import LeftColumnContainer
+from chat_ui.right.right_column_container import RightColumnContainer
+
+# ✅ Add project root to sys.path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+```
+
+---
+
+## 2️⃣ Show Splash Screen
+
+Before the main window loads, we display a splash screen with the NeuraPals logo to indicate that the application is starting up.
+
+```{python}
+app = QApplication(sys.argv)
+app.setWindowIcon(QIcon("chat_ui/assets/neuraform_icon.png"))
+
+splash_pix = QPixmap("chat_ui/assets/neurapal_ai_splash.png")
+splash = QSplashScreen(splash_pix, Qt.WindowType.WindowStaysOnTopHint)
+splash.setMask(splash_pix.mask())
+splash.show()
+app.processEvents()
+```
+
+---
+
+## 3️⃣ Setup Main Window
+
+Here, we create the main application window and initialize a grid layout to hold different parts of the UI.
+
+```{python}
+window = QMainWindow()
+window.setWindowTitle("NeuraPals - AI Chat")
+window.resize(1400, 700)
+
+main_widget = QWidget()
+layout = QGridLayout(main_widget)
+layout.setContentsMargins(0, 0, 0, 0)
+layout.setSpacing(0)
+```
+
+---
+
+## 4️⃣ Add UI Columns
+
+We add three main UI sections: left column (e.g., navigation or tools), center column (chat input), and right column (chat messages).
+
+```{python}
+# === Left column
+left_column = LeftColumnContainer()
+layout.addWidget(left_column, 0, 0, 2, 1)
+
+# === Center column (includes chat_input internally)
+center_column = CenterColumnContainer()
+layout.addWidget(center_column, 0, 1, 2, 1)
+
+# === Right column
+right_column = RightColumnContainer()
+layout.addWidget(right_column, 0, 2, 2, 1)
+```
+
+---
+
+## 5️⃣ Wire up Chat Input
+
+We connect the chat input component from the center column with the chat window on the right column to enable message flow.
+
+```{python}
+center_column.chat_input.chat_window = right_column.chat_window
+right_column.chat_window.input_box = center_column.chat_input
+```
+
+---
+
+## 6️⃣ Column Layout Proportions
+
+To make the layout responsive, we set the column stretching to give more space to the center column and equal but smaller space to the left and right columns.
+
+```{python}
+layout.setColumnStretch(0, 1)
+layout.setColumnStretch(1, 2)
+layout.setColumnStretch(2, 1)
+```
+
+---
+
+## 7️⃣ Final Window Setup and Launch
+
+We finish setting up the layout, position the window at the screen’s center, close the splash screen after a short delay, and then display the main application window.
+
+```{python}
+window.setCentralWidget(main_widget)
+window.move(app.primaryScreen().availableGeometry().center() - window.rect().center())
+
+QTimer.singleShot(1500, splash.close)  # Keeps splash for 1.5s
+QTimer.singleShot(1500, window.show)
+
+sys.exit(app.exec())
+```
+
+---
+
+## 8️⃣ Entry Point
+
+Finally, we ensure that `main()` is executed only if this script is run directly (not imported as a module).
+
+```{python}
+if __name__ == "__main__":
+    main()
+```
