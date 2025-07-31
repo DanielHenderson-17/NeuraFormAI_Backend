@@ -11,6 +11,7 @@ class PersonaSelectRequest(BaseModel):
 class ActivePersonaRequest(BaseModel):
     user_id: str
 
+# === List all available personas ===
 @router.get("/list")
 def list_personas():
     personas = PersonaManager.list_personas()
@@ -18,6 +19,7 @@ def list_personas():
         raise HTTPException(status_code=404, detail="No personas found")
     return {"personas": personas}
 
+# === Set the active persona for a user ===
 @router.post("/select")
 def select_persona(request: PersonaSelectRequest):
     """
@@ -32,6 +34,7 @@ def select_persona(request: PersonaSelectRequest):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+# === Get the active persona for a user ===
 @router.post("/active")
 def get_active_persona(request: ActivePersonaRequest):
     """

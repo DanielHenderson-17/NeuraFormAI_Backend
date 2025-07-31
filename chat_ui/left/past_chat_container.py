@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt
 
 
 class PastChatContainer(QFrame):
+    # === PastChatContainer for displaying past chat interactions in the left sidebar ===
     def __init__(self, parent=None):
         super().__init__(parent)
 

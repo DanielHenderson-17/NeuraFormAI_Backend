@@ -25,6 +25,7 @@ class PersonaService:
 
     BASE_URL = "http://127.0.0.1:8000/api/personas"
 
+    # === Class methods for persona management ===
     @classmethod
     def list_personas(cls):
         """
@@ -41,6 +42,7 @@ class PersonaService:
             print(f"❌ [PersonaService] Failed to fetch persona list: {e}")
             return []
 
+    # === Active persona management ===
     @classmethod
     def get_active_persona(cls):
         """
@@ -59,6 +61,7 @@ class PersonaService:
             print(f"❌ [PersonaService] Failed to fetch active persona: {e}")
             return {}
 
+    # === Persona selection ===
     @classmethod
     def select_persona(cls, persona_name: str):
         """

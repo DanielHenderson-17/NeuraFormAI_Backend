@@ -8,6 +8,7 @@ from chat_ui.services.persona_service import PersonaService
 
 
 class UserMenuWidget(QWidget):
+    # === UserMenuWidget for managing user-related actions in the sidebar ===
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -39,6 +40,7 @@ class UserMenuWidget(QWidget):
         layout.addWidget(btn_models)
         layout.addWidget(btn_logout)
 
+    # === Style for buttons ===
     def _button_style(self):
         return """
             QPushButton {
@@ -52,7 +54,7 @@ class UserMenuWidget(QWidget):
                 background-color: rgba(255, 255, 255, 0.1);
             }
         """
-
+    # === Paint event for rounded background ===
     def paintEvent(self, event):
         """Draw rounded rectangle background."""
         painter = QPainter(self)
@@ -62,6 +64,7 @@ class UserMenuWidget(QWidget):
         painter.drawRoundedRect(self.rect(), self.border_radius, self.border_radius)
         super().paintEvent(event)
 
+    # === Open NeuraPals menu for persona selection ===
     def open_neurapals_menu(self):
         """Fetch personas dynamically and open selection dialog."""
         personas = PersonaService.list_personas()

@@ -9,10 +9,11 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Mount chat-related routes
+# === Include CORS middleware ===
+from fastapi.middleware.cors import CORSMiddleware
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 
-# Mount persona management routes
+# === Include routers for chat and personas ===
 app.include_router(personas.router, prefix="/api")
 
 @app.on_event("startup")

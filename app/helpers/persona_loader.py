@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
 
+# === Load persona YAML and return structured messages and voice ID ===
 def load_persona(file_path: str) -> dict:
     """
     Loads persona YAML and returns structured messages and voice ID.
@@ -47,6 +48,7 @@ def load_persona(file_path: str) -> dict:
         "voice_id": voice_id
     }
 
+# === Load only persona metadata (name, voice_id, vrm_model) ===
 def load_persona_metadata(file_path: str) -> dict:
     """
     Loads only persona metadata (name, voice_id, vrm_model).

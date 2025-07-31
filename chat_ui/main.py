@@ -8,7 +8,7 @@ from chat_ui.center.center_column_container import CenterColumnContainer
 from chat_ui.left.left_column_container import LeftColumnContainer
 from chat_ui.right.right_column_container import RightColumnContainer
 
-# Add project root to sys.path
+# === Ensure the chat_ui directory is in the Python path for imports ===
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 def main():

@@ -14,6 +14,7 @@ import requests
 class ReplyEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
+    # === Event to handle AI replies ===
     def __init__(self, text):
         super().__init__(ReplyEvent.EVENT_TYPE)
         self.text = text
@@ -22,6 +23,7 @@ class ReplyEvent(QEvent):
 class UserInputEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
+    # === Event to handle user input ===
     def __init__(self, text):
         super().__init__(UserInputEvent.EVENT_TYPE)
         self.text = text
@@ -30,11 +32,13 @@ class UserInputEvent(QEvent):
 class TypingEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
+    # === Event to indicate AI is typing ===
     def __init__(self):
         super().__init__(TypingEvent.EVENT_TYPE)
 
 
 class ChatWindow(QWidget):
+    # === ChatWindow for displaying chat messages and handling input ===
     def __init__(self):
         super().__init__()
 
@@ -105,6 +109,7 @@ class ChatWindow(QWidget):
 
         self.input_box = None  # Will be set externally
 
+    # === Add a chat bubble to the window ===
     def add_bubble(self, message, sender="user"):
         print(f"💬 [ChatWindow] Adding bubble - Sender: {sender}, Persona: {self.persona_name}")
         bubble = ChatBubble(
@@ -115,11 +120,13 @@ class ChatWindow(QWidget):
         self.scroll_layout.addWidget(bubble)
         QTimer.singleShot(50, self.scroll_to_bottom)
 
+    # === Scroll to the bottom of the chat window ===
     def scroll_to_bottom(self):
         self.scroll_area.verticalScrollBar().setValue(
             self.scroll_area.verticalScrollBar().maximum()
         )
 
+    # === Get the reply from the AI ===
     def fetch_reply(self, message):
         # 🔄 Refresh active persona first
         user_id = SessionManager.get_user_id()
@@ -168,6 +175,7 @@ class ChatWindow(QWidget):
         else:
             QCoreApplication.postEvent(self, ReplyEvent(reply_text))
 
+    # === Handle events for user input, AI replies, and typing indication ===
     def event(self, event):
         if event.type() == ReplyEvent.EVENT_TYPE:
             print("[ReplyEvent] AI reply displayed:", event.text)
@@ -187,6 +195,7 @@ class ChatWindow(QWidget):
 
         return super().event(event)
 
+    # === Insert a typing bubble to indicate AI is thinking ===
     def insert_typing_bubble(self):
         if self.typing_label:
             return
@@ -205,6 +214,7 @@ class ChatWindow(QWidget):
         self.typing_timer.timeout.connect(self.update_typing_ellipsis)
         self.typing_timer.start(500)
 
+    # === Remove the typing bubble when AI stops typing ===
     def remove_typing_bubble(self):
         if self.typing_timer:
             self.typing_timer.stop()
@@ -215,6 +225,7 @@ class ChatWindow(QWidget):
             self.typing_label = None
         self.typing_dots = 0
 
+    # === Update the typing ellipsis dynamically ===
     def update_typing_ellipsis(self):
         if not self.typing_label:
             return

@@ -2,7 +2,7 @@ import pytest
 from PyQt6.QtCore import Qt
 from chat_ui.left.personas.neurapals import NeuraPalsDialog
 
-
+# === Fixture for NeuraPalsDialog ===
 @pytest.fixture
 def personas():
     return [
@@ -11,7 +11,7 @@ def personas():
         {"name": "Kenji"}
     ]
 
-
+# === Fixture for NeuraPalsDialog with callback ===
 @pytest.fixture
 def dialog(qtbot, personas):
     callback_called = {"name": None}
@@ -24,14 +24,14 @@ def dialog(qtbot, personas):
     return dlg, callback_called
 
 
-# ✅ Test: Dialog creates correct number of persona buttons
+# === Test: Dialog creates correct number of persona buttons ===
 def test_buttons_render(dialog):
     dlg, _ = dialog
     buttons = dlg.findChildren(type(dlg.findChild(type(dlg.layout().itemAt(1).widget()))))
     assert len(buttons) == 3  # matches number of personas
 
 
-# 🖱️ Test: Clicking a button triggers swap callback and closes dialog
+# === Test: Clicking a button triggers swap callback and closes dialog ===
 def test_persona_selection_triggers_callback(qtbot, dialog):
     dlg, callback_called = dialog
 

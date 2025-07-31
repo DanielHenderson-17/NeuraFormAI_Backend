@@ -3,7 +3,7 @@ import uuid
 from chat_ui.services.persona_service import SessionManager, PersonaService
 
 
-# ✅ Fixture to reset user_id before each test
+# === Fixture to reset user ID before each test ===
 @pytest.fixture(autouse=True)
 def reset_user_id():
     SessionManager._user_id = None
@@ -11,7 +11,7 @@ def reset_user_id():
     SessionManager._user_id = None
 
 
-# 🧪 Test SessionManager generates and caches UUID
+# === Test: SessionManager generates UUID ===
 def test_session_manager_generates_uuid():
     first_id = SessionManager.get_user_id()
     second_id = SessionManager.get_user_id()
@@ -20,7 +20,7 @@ def test_session_manager_generates_uuid():
     assert uuid.UUID(first_id)    # Should be valid UUID
 
 
-# 🧪 Test listing personas
+# === Test: Listing personas ===
 def test_list_personas(requests_mock):
     mock_data = {"personas": ["Fuka", "Gwen"]}
     requests_mock.get("http://127.0.0.1:8000/api/personas/list", json=mock_data)
@@ -29,7 +29,7 @@ def test_list_personas(requests_mock):
     assert result == ["Fuka", "Gwen"]
 
 
-# 🧪 Test getting active persona
+# === Test: Getting active persona ===
 def test_get_active_persona(requests_mock):
     mock_persona = {"active_persona": {"name": "Fuka"}}
     requests_mock.post("http://127.0.0.1:8000/api/personas/active", json=mock_persona)
@@ -38,7 +38,7 @@ def test_get_active_persona(requests_mock):
     assert result["name"] == "Fuka"
 
 
-# 🧪 Test selecting a persona
+# === Test: Selecting a persona ===
 def test_select_persona(requests_mock):
     mock_persona = {"active_persona": {"name": "Gwen"}}
     requests_mock.post("http://127.0.0.1:8000/api/personas/select", json=mock_persona)

@@ -10,6 +10,7 @@ class PersonaManager:
     _active_personas = {}  # { user_id: "persona.yml" }
     _characters_dir = Path("app/config/characters")
 
+    # === List all available personas ===
     @classmethod
     def list_personas(cls) -> list[dict]:
         """
@@ -29,7 +30,8 @@ class PersonaManager:
                 "vrm_model": meta["vrm_model"]
             })
         return personas
-
+    
+    # === Set the active persona for a user ===
     @classmethod
     def set_persona(cls, user_id: str, persona_name: str) -> None:
         """
@@ -45,7 +47,7 @@ class PersonaManager:
         cls._active_personas[user_id] = selected_file
         print(f"🔄 Persona for user {user_id} switched to {selected_file}")
 
-
+    # === Get the active persona file path for a user ===
     @classmethod
     def get_active_path(cls, user_id: str) -> str:
         """
@@ -72,7 +74,7 @@ class PersonaManager:
     
         return str(cls._characters_dir / active_file)
 
-
+    # === Get metadata for the active persona of a user ===
     @classmethod
     def get_active_metadata(cls, user_id: str) -> dict:
         """

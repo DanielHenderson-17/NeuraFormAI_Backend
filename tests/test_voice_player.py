@@ -3,18 +3,18 @@ import numpy as np
 from unittest.mock import MagicMock, patch
 from chat_ui.components.VoicePlayer import VoicePlayer
 
-
+# === Fixture for VoicePlayer ===
 @pytest.fixture
 def player():
     return VoicePlayer()
 
-
+# === Test: VoicePlayer initializes correctly ===
 def test_voice_disabled_skips_playback(player, capsys):
     player.play_reply_from_backend("Hello", voice_enabled=False)
     captured = capsys.readouterr()
     assert "Voice disabled" in captured.out
 
-
+# === Test: VoicePlayer handles playback errors gracefully ===
 class FakeAudio:
     def __init__(self):
         self.channels = 1
@@ -31,7 +31,7 @@ class FakeAudio:
         # Simulate audio duration in ms
         return 1000
 
-
+# === Test: Successful playback with mocked audio segment ===
 @patch("chat_ui.components.VoicePlayer.requests.post")
 @patch("chat_ui.components.VoicePlayer.sd")
 def test_successful_playback(mock_sd, mock_post, player, monkeypatch):

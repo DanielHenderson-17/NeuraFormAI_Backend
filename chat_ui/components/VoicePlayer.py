@@ -6,13 +6,13 @@ import sounddevice as sd
 from pydub import AudioSegment
 from chat_ui.services.persona_service import SessionManager
 
-# 🔧 Path to ffmpeg
+# === Ensure ffmpeg is available in the PATH for audio processing ===
 ffmpeg_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ffmpeg", "bin"))
 os.environ["PATH"] += os.pathsep + ffmpeg_dir
 os.environ["FFMPEG_BINARY"] = os.path.join(ffmpeg_dir, "ffmpeg.exe")
 os.environ["FFPROBE_BINARY"] = os.path.join(ffmpeg_dir, "ffprobe.exe")
 
-# 🔒 Verify and assign converter
+# === Ensure ffmpeg binary exists ===
 ffmpeg_path = os.environ["FFMPEG_BINARY"]
 if not os.path.isfile(ffmpeg_path):
     raise FileNotFoundError(f"FFMPEG binary not found at: {ffmpeg_path}")
@@ -22,6 +22,7 @@ print("🔧 FFMPEG_BINARY =", ffmpeg_path)
 
 
 class VoicePlayer:
+    # === VoicePlayer for handling ElevenLabs TTS playback ===
     def play_reply_from_backend(self, text: str, voice_enabled=True, on_start=None):
         """Request ElevenLabs stream from backend and play it."""
         if not voice_enabled:

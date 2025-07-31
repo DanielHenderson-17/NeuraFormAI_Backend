@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt
 
 
 class VRMContainer(QFrame):
+    # === VRMContainer for displaying VRM models in the center area ===
     def __init__(self, parent=None):
         super().__init__(parent)
 

@@ -19,6 +19,7 @@ class ChatResponse(BaseModel):
     total_tokens: int
     voice_id: str | None = None 
 
+# === Chat endpoint for generating replies ===
 @router.post("/", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     print(f"📩 [/chat/] message received from {request.user_id} | voice_enabled={request.voice_enabled}")
@@ -29,6 +30,7 @@ async def chat_endpoint(request: ChatRequest):
     )
     return ChatResponse(**result)
 
+# === Chat endpoint for streaming TTS audio ===
 @router.post("/speak")
 async def chat_speak_endpoint(request: ChatRequest):
     print(f"📡 [/chat/speak] Received TTS request | voice_enabled={request.voice_enabled}")
@@ -55,6 +57,7 @@ async def chat_speak_endpoint(request: ChatRequest):
         status_code=200
     )
 
+# === Endpoint to convert text to speech using active persona ===
 @router.post("/speak-from-text")
 def speak_from_text(
     user_id: str = Body(..., embed=True),

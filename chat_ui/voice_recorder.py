@@ -1,3 +1,4 @@
+import re
 import sounddevice as sd
 import numpy as np
 import queue
@@ -5,46 +6,44 @@ import threading
 import webrtcvad
 from faster_whisper import WhisperModel
 import time
+from chat_ui.services.persona_service import PersonaService
 
-# === Voice Recorder Class
+
 class VoiceRecorder:
+    # === Initialization ===
     def __init__(self, model_name="base", silence_duration=4.0, aggressiveness=3):
-        # 🎙️ Audio capture config
+        # 🎙️ Audio config
         self.sample_rate = 16000
-        self.block_duration = 30  # ms per audio block
+        self.block_duration = 30  # ms
         self.block_size = int(self.sample_rate * self.block_duration / 1000)
 
         # === Voice Activity Detection
         self.vad = webrtcvad.Vad(aggressiveness)
 
-        # === Streaming state
+        # === State
         self.audio_queue = queue.Queue()
         self.recording = False
         self.model = WhisperModel(model_name, compute_type="int8", device="cpu")
 
-        # === Silence and timeout control
         self.silence_duration = silence_duration
         self._last_voice_time = time.time()
         self.continuous_mode = True
         self.status_callback = None
         self.max_empty_loops = 3
 
-    # === Audio callback
-    # ✅ Captures microphone input and queues it for processing
+    # === Callback for Audio Input ===
     def _callback(self, indata, frames, time_info, status):
         if status:
             print("Status:", status)
         audio_data = indata[:, 0]
         self.audio_queue.put(audio_data.copy())
 
-    # === Speech Detection
-    # ✅ Checks if an audio chunk contains speech
+    # === Speech Detection ===
     def _is_speech(self, chunk):
         pcm = (chunk * 32768).astype(np.int16).tobytes()
         return self.vad.is_speech(pcm, self.sample_rate)
 
-    # === Recording Loop
-    # ✅ Records audio until silence is detected
+    # === Recording Loop ===
     def _record_until_silence(self):
         if self.status_callback:
             self.status_callback("Listening...")
@@ -74,8 +73,7 @@ class VoiceRecorder:
 
         return np.concatenate(audio)
 
-    # === Transcription
-    # ✅ Uses Whisper model to convert recorded audio to text
+    # === Transcription ===
     def _transcribe(self, audio):
         if self.status_callback:
             self.status_callback("Transcribing...")
@@ -86,8 +84,7 @@ class VoiceRecorder:
         print("📝 Transcript:", full_text)
         return full_text
 
-    # === Main Loop
-    # ✅ Records → Transcribes → Sends text back via callback
+    # === Main Loop ===
     def _run_loop(self, callback):
         empty_count = 0
         while self.recording:
@@ -95,7 +92,20 @@ class VoiceRecorder:
             if not self.recording:
                 break
 
-            transcript = self._transcribe(audio).strip()
+            transcript = self._transcribe(audio).strip().lower()
+
+            # === Detect "switch to" or "swap to"
+            match = re.match(r"^(?:switch|swap)\s+to\s+(.+)$", transcript)
+            if match:
+                persona_name = re.sub(r'[^\w\s-]', '', match.group(1)).strip()
+                print(f"🔄 Voice command detected — switching to persona: {persona_name}")
+                PersonaService.select_persona(persona_name)
+            
+                if self.status_callback:
+                    self.status_callback(f"Switched to {persona_name}")
+                continue
+
+            # === Send normal text
             if transcript:
                 empty_count = 0
                 callback(transcript)
@@ -120,8 +130,7 @@ class VoiceRecorder:
             self.status_callback("Stopped.")
         print("🛑 VoiceRecorder stopped")
 
-    # === Start Recording
-    # ✅ Launches voice recorder in a background thread
+    # === Start Recording ===
     def start_recording_async(self, callback, on_status=None):
         if self.recording:
             print("⚠️ Already recording. Ignored.")
@@ -132,8 +141,7 @@ class VoiceRecorder:
         thread = threading.Thread(target=self._run_loop, args=(callback,), daemon=True)
         thread.start()
 
-    # === Stop Recording
-    # ✅ Manually stops recording and transcription
+    # === Stop Recording ===
     def stop(self):
         print("⏹️ Manual stop called")
         self.recording = False

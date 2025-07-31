@@ -3,6 +3,7 @@ from chat_ui.left.past_chat_container import PastChatContainer
 from chat_ui.left.user_container import UserContainer
 
 class LeftColumnContainer(QWidget):
+    # === LeftColumnContainer for managing the left sidebar layout ===
     def __init__(self, parent=None):
         super().__init__(parent)
 

@@ -3,6 +3,7 @@ from chat_ui.center.vrm_container import VRMContainer
 from chat_ui.center.chat_input import ChatInput
 
 class CenterColumnContainer(QWidget):
+    # === CenterColumnContainer for managing the center area layout ===
     def __init__(self, parent=None):
         super().__init__(parent)
 

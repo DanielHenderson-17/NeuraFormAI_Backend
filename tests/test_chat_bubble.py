@@ -3,13 +3,13 @@ from PyQt6.QtWidgets import QApplication
 from chat_ui.right.chat_bubble import ChatBubble
 
 
-# 🧪 Pytest fixture to initialize QApplication (required for Qt widgets)
+# === Fixture for QApplication ===
 @pytest.fixture
 def app(qtbot):
     return QApplication([])
 
 
-# 💬 Test left-aligned chat bubble (e.g., from bot or assistant)
+# === Test left-aligned chat bubble (e.g., from bot) ===
 def test_chat_bubble_left(qtbot):
     bubble = ChatBubble("Hello world", "Bot", align_right=False)
     qtbot.addWidget(bubble)
@@ -19,7 +19,7 @@ def test_chat_bubble_left(qtbot):
     assert bubble.align_right is False                   # ✅ Left alignment
 
 
-# 💬 Test right-aligned chat bubble (e.g., from user)
+# === Test right-aligned chat bubble (e.g., from user) ===
 def test_chat_bubble_right(qtbot):
     bubble = ChatBubble("Hi there", "User", align_right=True)
     qtbot.addWidget(bubble)

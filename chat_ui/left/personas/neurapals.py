@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 
 class NeuraPalsDialog(QDialog):
+    # === NeuraPalsDialog for selecting personas ===
     def __init__(self, personas, swap_callback, parent=None):
         """
         :param personas: list of persona dicts ({"name": "...", ...})
@@ -53,6 +54,7 @@ class NeuraPalsDialog(QDialog):
 
         self.setMinimumWidth(300)
 
+    # === Handle persona selection and close dialog ===
     def _select_persona(self, name, swap_callback):
         """Handle persona selection and close dialog."""
         swap_callback(name)

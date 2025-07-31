@@ -5,14 +5,13 @@ from pathlib import Path
 from app.services.chat_engine import ChatEngine
 from ..helpers.text_cleaner import sanitize_for_speech
 
-# Load environment variables (only need API key now)
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
-
 
 API_KEY = os.getenv("ELEVENLABS_API_KEY")
 client = ElevenLabs(api_key=API_KEY)
 
+# === Synthesize text to speech using ElevenLabs ===
 def synthesize_reply_as_stream(text: str, voice_id: str = None):
     """
     Stream TTS audio for a given text. If no voice_id is provided,

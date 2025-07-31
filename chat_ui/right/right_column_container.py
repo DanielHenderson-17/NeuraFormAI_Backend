@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from chat_ui.right.chat_window import ChatWindow
 
 class RightColumnContainer(QWidget):
+    # === RightColumnContainer for holding the chat window ===
     def __init__(self, parent=None):
         super().__init__(parent)
 

@@ -21,6 +21,7 @@ class ChatEngine:
     # Cache now per user
     _persona_cache = {}  # { user_id: { "messages": [...], "voice_id": str, "last_loaded": timestamp } }
 
+    # === Load persona data if needed ===
     @staticmethod
     def _load_persona_if_needed(user_id: str):
         """
@@ -44,6 +45,7 @@ class ChatEngine:
         else:
             print(f"✅ Using cached persona for user {user_id}")
 
+    # === Get persona messages and voice ID for a user ===
     @staticmethod
     def _get_persona(user_id: str):
         """Return cached persona messages and voice ID."""
@@ -54,12 +56,14 @@ class ChatEngine:
             "voice_id": cached["voice_id"],
         }
 
+    # === Public methods for chat engine to get persona information ===
     @staticmethod
     def get_voice_id(user_id: str) -> str:
         """Public method to get current persona's voice ID."""
         ChatEngine._load_persona_if_needed(user_id)
         return ChatEngine._persona_cache[user_id]["voice_id"]
 
+    # === Generate a reply using the current persona ===
     @staticmethod
     async def generate_reply(user_id: str, message: str, mode: str) -> dict:
         """
@@ -76,6 +80,7 @@ class ChatEngine:
                 "voice_id": None,
             }
 
+    # === Use OpenRouter API to generate a chat reply ===
     @staticmethod
     async def _use_openrouter(user_id: str, message: str) -> dict:
         """

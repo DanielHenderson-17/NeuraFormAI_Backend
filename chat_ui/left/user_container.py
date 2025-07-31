@@ -4,6 +4,7 @@ from PyQt6.QtGui import QCursor
 from chat_ui.left.user_menu.user_menu_widget import UserMenuWidget
 
 class UserContainer(QFrame):
+    # === UserContainer for managing user interactions in the left sidebar ===
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -47,6 +48,7 @@ class UserContainer(QFrame):
 
         QApplication.instance().installEventFilter(self)
 
+    # === Toggle user menu visibility ===
     def toggle_menu(self, event):
         current_height = self.user_menu.maximumHeight()
         target_height = self.user_menu.sizeHint().height()
@@ -59,6 +61,7 @@ class UserContainer(QFrame):
 
         self.animate_menu()
 
+    # === Animate menu opening/closing ===
     def animate_menu(self):
         animation = QPropertyAnimation(self.user_menu, b"maximumHeight")
         animation.setDuration(300)
@@ -76,7 +79,7 @@ class UserContainer(QFrame):
         animation.start()
         self.animation = animation
 
-
+    # === Event filter to close menu on outside click ===
     def eventFilter(self, watched, event):
         if self.menu_visible and event.type() == QEvent.Type.MouseButtonPress:
             if not self.user_menu.geometry().contains(

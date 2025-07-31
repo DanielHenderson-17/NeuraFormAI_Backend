@@ -7,6 +7,7 @@ from chat_ui.components.CodeBlockWidget import CodeBlockWidget
 
 
 class ChatBubble(QWidget):
+    # === ChatBubble for displaying messages in the chat window ===
     def __init__(self, message, sender_name, align_right=False):
         super().__init__()
         self.message = message
@@ -14,6 +15,7 @@ class ChatBubble(QWidget):
         self.align_right = align_right
         self.init_ui()
 
+    # === Initialize the UI components of the chat bubble ===
     def init_ui(self):
         bubble_bg = "#ffffff" if self.align_right else "#d1ecf1"
         text_color = "#000000"
@@ -77,6 +79,7 @@ class ChatBubble(QWidget):
             main_layout.addWidget(bubble_container)
             main_layout.addStretch()
 
+    # === Update the message content dynamically ===
     def set_message(self, new_message):
         self.message = new_message
         if hasattr(self, "label") and self.label:

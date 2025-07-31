@@ -2,6 +2,7 @@ import httpx
 
 API_URL = "https://openrouter.ai/api/v1/models"
 
+# === List available OpenRouter models ===
 def list_models():
     try:
         response = httpx.get(API_URL)

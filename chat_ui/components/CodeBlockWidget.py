@@ -7,6 +7,7 @@ import os
 
 
 class CodeBlockWidget(QWidget):
+    # === CodeBlockWidget for displaying code snippets ===
     def __init__(self, code: str, language: str = "code"):
         super().__init__()
 
@@ -79,11 +80,13 @@ class CodeBlockWidget(QWidget):
         self.container.setLayout(container_layout)
         outer_layout.addWidget(self.container)
 
+    # === Calculate height based on text content ===
     def calculate_text_height(self):
         line_count = self.text_edit.toPlainText().count('\n') + 1
         font_metrics = self.text_edit.fontMetrics()
         return line_count * font_metrics.lineSpacing() + 16
-
+    
+    # === Copy code to clipboard ===
     def copy_to_clipboard(self):
         clipboard: QClipboard = QApplication.clipboard()
         clipboard.setText(self.text_edit.toPlainText())

@@ -4,23 +4,28 @@ from PyQt6.QtGui import QColor, QPainter, QBrush
 
 
 class VoiceToggleSwitch(QWidget):
+    # === VoiceToggleSwitch for enabling/disabling voice features ===
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(50, 24)
         self._enabled = False
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
+    # === Check if voice is enabled ===
     def is_enabled(self):
         return self._enabled
 
+    # === Set the enabled state and update appearance ===
     def set_enabled(self, value: bool):
         self._enabled = value
         self.update()
 
+    # === Handle mouse press to toggle state ===
     def mousePressEvent(self, event):
         self._enabled = not self._enabled
         self.update()
 
+    # === Paint the toggle switch appearance ===
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

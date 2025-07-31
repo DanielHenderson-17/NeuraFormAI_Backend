@@ -2,7 +2,7 @@ import pytest
 from PyQt6.QtCore import QEvent
 from chat_ui.right.chat_window import ChatWindow, TypingEvent, ReplyEvent
 
-
+# === Fixture for ChatWindow ===
 @pytest.fixture
 def chat_window(qtbot):
     """Creates a fresh instance of ChatWindow for each test."""
@@ -11,7 +11,7 @@ def chat_window(qtbot):
     return window
 
 
-# ✅ Test: Adding a user message bubble
+# === Test: Adding a user message bubble ===
 def test_add_user_bubble(chat_window):
     chat_window.add_bubble("Hello user", sender="user")
 
@@ -21,7 +21,7 @@ def test_add_user_bubble(chat_window):
     assert bubble.align_right is True  # User messages are right-aligned
 
 
-# ✅ Test: Adding an AI message bubble
+# === Test: Adding an AI message bubble ===
 def test_add_ai_bubble(chat_window):
     chat_window.add_bubble("Hello AI", sender="ai")
 
@@ -30,7 +30,7 @@ def test_add_ai_bubble(chat_window):
     assert bubble.align_right is False  # AI messages are left-aligned
 
 
-# 💬 Test: Typing bubble insertion
+# === Test: Typing bubble insertion ===
 def test_insert_typing_bubble(chat_window):
     chat_window.insert_typing_bubble()
 
@@ -38,7 +38,7 @@ def test_insert_typing_bubble(chat_window):
     assert chat_window.scroll_layout.itemAt(chat_window.scroll_layout.count() - 1).widget() == chat_window.typing_label
 
 
-# 🧹 Test: Removing typing bubble
+# === Test: Typing bubble removal ===
 def test_remove_typing_bubble(chat_window):
     chat_window.insert_typing_bubble()
     chat_window.remove_typing_bubble()
@@ -47,7 +47,7 @@ def test_remove_typing_bubble(chat_window):
     assert chat_window.typing_timer is None
 
 
-# 🔄 Test: Handling ReplyEvent adds an AI bubble
+# === Test: Typing event adds typing bubble ===
 def test_reply_event_adds_bubble(chat_window):
     event = ReplyEvent("AI says hi")
     chat_window.event(event)
