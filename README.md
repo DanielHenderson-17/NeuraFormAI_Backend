@@ -15,7 +15,3 @@
 <!-- Runs all Unit Tests -->
 
 4. `pytest tests/`
-
-<!-- Generates a Preview of the Walkthrough File -->
-
-5. `quarto preview`
