@@ -14,7 +14,7 @@ HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json",
     "HTTP-Referer": "http://localhost",
-    "X-Title": "NeuraPalsAI",
+    "X-Title": "NeuraPalAI",
 }
 
 class ChatEngine:

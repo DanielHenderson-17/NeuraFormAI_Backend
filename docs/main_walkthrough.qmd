@@ -58,7 +58,7 @@ Here, we create the main application window and initialize a grid layout to hold
 
 ```{python}
 window = QMainWindow()
-window.setWindowTitle("NeuraPals - AI Chat")
+window.setWindowTitle("NeuraPal - AI Chat")
 window.resize(1400, 700)
 
 main_widget = QWidget()

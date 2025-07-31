@@ -24,7 +24,7 @@ def main():
 
     # === 2️⃣ Setup main window
     window = QMainWindow()
-    window.setWindowTitle("NeuraPals - AI Chat")
+    window.setWindowTitle("NeuraPal - AI Chat")
     window.resize(1400, 700)
 
     main_widget = QWidget()
