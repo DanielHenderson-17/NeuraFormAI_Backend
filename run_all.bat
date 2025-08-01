@@ -9,8 +9,8 @@ call tts-venv\Scripts\activate
 REM 2️⃣ Start backend server
 start cmd /k "uvicorn app.main:app --reload"
 
-REM 3️⃣ Launch frontend PyQt app
-start cmd /k "python -m chat_ui.main"
+REM 3️⃣ Launch frontend PyQt app with Chromium flags
+start cmd /k "python launch.py"
 
 REM 4️⃣ (Optional) Run unit tests
 REM Uncomment next line if you want tests to run automatically
