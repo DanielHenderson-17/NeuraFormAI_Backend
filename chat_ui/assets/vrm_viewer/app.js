@@ -19,10 +19,14 @@ function init() {
   camera.position.set(0, 1.5, 3);
   clock = new THREE.Clock();
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  // === CORRECTED RENDERER SECTION ===
+  // Add alpha: true to enable transparency
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x00ff00);
+  // Set the clear alpha to 0 for a transparent background
+  renderer.setClearAlpha(0);
   document.body.appendChild(renderer.domElement);
+  // === END CORRECTED RENDERER SECTION ===
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 1.4, 0);

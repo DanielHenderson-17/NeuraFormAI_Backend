@@ -12,15 +12,10 @@ from chat_ui.services.persona_service import PersonaService
 
 
 class ChatInputTextEdit(QTextEdit):
-
-    # === Initialization
-    # ✅ Sets up the text edit with custom key handling for sending messages
     def __init__(self, parent=None, send_callback=None):
         super().__init__(parent)
         self.send_callback = send_callback
 
-    # === Key Press Event
-    # ✅ Handles Enter/Return key for sending messages, Shift+Enter for new line
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             if event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
@@ -33,18 +28,19 @@ class ChatInputTextEdit(QTextEdit):
 
 
 class ChatInput(QWidget):
-
-    # === Initialization
-    # ✅ Sets up the chat input UI with voice toggle and text entry
     def __init__(self, chat_window, parent=None):
         super().__init__(parent)
         self.chat_window = chat_window
         self.recorder = VoiceRecorder()
         self.voice_mode = False
 
-        # === Main Layout ===
+        # --- FIX: AGGRESSIVE TRANSPARENCY AND BORDER FOR DEBUGGING ---
+        # This forces the main ChatInput widget's background to be transparent
+        # and adds a clear border to see if this is the widget blocking the view.
+        self.setStyleSheet("background-color: transparent; border: 2px solid purple;")
         self.setAutoFillBackground(False)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
 
         # === Outer Layout ===
@@ -52,14 +48,19 @@ class ChatInput(QWidget):
         outer_layout.setContentsMargins(0, 0, 0, 20)
         outer_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
 
-        # === Voice toggle row ===
-        toggle_row = QHBoxLayout()
+        # === Voice toggle container ===
+        toggle_container = QWidget()
+        toggle_container.setStyleSheet("background: transparent; border: 1px solid green;")
+        
+        toggle_row = QHBoxLayout(toggle_container)
         toggle_row.setContentsMargins(0, 0, 6, 0)
         toggle_row.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.voice_toggle = VoiceToggleSwitch()
+        self.voice_toggle.setStyleSheet("background-color: transparent;")
+        
         toggle_row.addWidget(self.voice_toggle)
-        outer_layout.addLayout(toggle_row)
+        outer_layout.addWidget(toggle_container)
 
         # === Chat input bubble ===
         self.bubble = QFrame()
@@ -189,8 +190,6 @@ class ChatInput(QWidget):
         self.set_input_mode("keyboard")
         self.adjust_textedit_height()
 
-    # === Adjust TextEdit Height
-    # ✅ Dynamically adjusts the height of the text entry based on content
     def adjust_textedit_height(self):
         doc_height = self.entry.document().size().height()
         padding = 20
@@ -198,8 +197,6 @@ class ChatInput(QWidget):
         capped_height = min(max(36, total_height), 120)
         self.entry.setFixedHeight(capped_height)
 
-    # === Set Input Mode
-    # ✅ Switches between keyboard and voice input modes
     def set_input_mode(self, mode):
         self.voice_mode = (mode == "mic")
 
@@ -221,8 +218,6 @@ class ChatInput(QWidget):
             self.mic_button.setIcon(QIcon("chat_ui/assets/mic.svg"))
             self.mic_button.setChecked(False)
 
-    # === Send Message
-    # ✅ Handles sending messages from the text entry
     def send_message(self):
         message = self.entry.toPlainText().strip()
         if not message:
@@ -231,7 +226,6 @@ class ChatInput(QWidget):
         self.entry.clear()
         self.adjust_textedit_height()
 
-        # Detect "switch to ..." or "swap to ..."
         match = re.match(r"^(?:switch|swap)\s+to\s+(.+)$", message.lower())
         if match:
             persona_name = match.group(1).strip()
@@ -242,11 +236,8 @@ class ChatInput(QWidget):
             QTimer.singleShot(2000, lambda: self.entry.setPlaceholderText("Start typing..."))
             return
 
-        # Normal message
         QCoreApplication.postEvent(self.chat_window, UserInputEvent(message))
 
-    # === Status Updates
-    # ✅ Updates the input box placeholder based on voice recorder status
     def update_status(self, text):
         if "stopped" in text.lower():
             self.set_input_mode("keyboard")
@@ -255,39 +246,24 @@ class ChatInput(QWidget):
         else:
             self.entry.setPlaceholderText(text)
 
-    # === Voice Input Callback
-    # ✅ Called by the voice recorder with transcribed text
     def voice_input_callback(self, transcript):
         QCoreApplication.postEvent(self.chat_window, UserInputEvent(transcript))
 
-    # === Toggle Chat Window
-    # ✅ Toggles the visibility of the chat window
     def toggle_chat_window(self):
         is_visible = self.chat_window.isVisible()
         self.chat_window.setVisible(not is_visible)
         self.chat_toggle_button.setChecked(not is_visible)
 
-    # === Toggle Microphone
-    # ✅ Toggles the microphone input mode
     def toggle_mic(self):
         if self.voice_mode:
             self.set_input_mode("keyboard")
         else:
             self.set_input_mode("mic")
 
-    # === Check if voice input is enabled
-    # ✅ Returns whether the voice toggle is enabled
     def is_voice_enabled(self):
         return self.voice_toggle.is_enabled()
     
-    # === Send Greeting Message
-    # ✅ Automatically sends a greeting message after persona switch
     def send_greeting_message(self):
-        """
-        Sends an automatic greeting request after persona swap.
-        This triggers AI bubble + TTS if enabled.
-        """
         message = "Introduce yourself briefly as the new persona."
         print(f"🤖 Auto-sending greeting message: {message}")
         QCoreApplication.postEvent(self.chat_window, UserInputEvent(message))
-

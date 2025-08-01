@@ -8,14 +8,16 @@ class CenterColumnContainer(QWidget):
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 0, 20, 0) 
+        layout.setContentsMargins(20, 0, 20, 0)
         layout.setSpacing(0)
 
         self.vrm_container = VRMContainer()
         self.vrm_container.setStyleSheet("background-color: #1e1e1e;")
 
         self.chat_input = ChatInput(None, parent=self)
-        self.chat_input.setStyleSheet("background-color: #1e1e1e;")
+        # Ensure the chat input container itself is transparent
+        self.chat_input.setStyleSheet("background-color: transparent;")
 
+        # Stretch the VRM container to take up more space
         layout.addWidget(self.vrm_container, stretch=3)
         layout.addWidget(self.chat_input, stretch=1)

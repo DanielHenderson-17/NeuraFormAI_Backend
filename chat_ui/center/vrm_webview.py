@@ -1,7 +1,8 @@
 import os
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtCore import QTimer, QUrl, QObject, pyqtSlot
+from PyQt6.QtCore import QTimer, QUrl, QObject, pyqtSlot, QSize
+from PyQt6.QtGui import QColor
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 # Re-import QWebEngineSettings as it's needed for setAttribute
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings 
@@ -10,6 +11,11 @@ class JSConsoleHandler(QWebEnginePage):
     """
     Custom QWebEnginePage to override the JavaScript console message handler.
     """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Set the QWebEnginePage's background color to transparent
+        self.setBackgroundColor(QColor(0, 0, 0, 0))
+
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceId):
         # A compatible way to map console message levels,
         # since ConsoleMessageLevel might not be available in older versions.
@@ -46,12 +52,15 @@ class VRMWebView(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         
+        # We can also set the parent widget's background to transparent for good measure
+        self.setStyleSheet("background: transparent;")
+        
         # Create a QWebEngineView and set our custom page for it
         self.webview = QWebEngineView(self)
         custom_page = JSConsoleHandler(self.webview)
         self.webview.setPage(custom_page)
         
-        # Enable JavaScript and local file access - RE-ENABLED THESE LINES
+        # Enable JavaScript and local file access 
         settings = self.webview.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
