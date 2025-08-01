@@ -18,16 +18,12 @@ HEADERS = {
 }
 
 class ChatEngine:
-    # Cache now per user
     _persona_cache = {}  # { user_id: { "messages": [...], "voice_id": str, "last_loaded": timestamp } }
 
-    # === Load persona data if needed ===
+    # === Private methods to manage persona loading and caching ===
     @staticmethod
     def _load_persona_if_needed(user_id: str):
-        """
-        Load and cache persona data for this user.
-        Automatically refreshes cache if YAML file changes.
-        """
+        """Load and cache persona data for this user."""
         persona_path = PersonaManager.get_active_path(user_id)
         mtime = os.path.getmtime(persona_path)
 
@@ -45,10 +41,9 @@ class ChatEngine:
         else:
             print(f"✅ Using cached persona for user {user_id}")
 
-    # === Get persona messages and voice ID for a user ===
+    # === Get persona data and voice ID ===
     @staticmethod
     def _get_persona(user_id: str):
-        """Return cached persona messages and voice ID."""
         ChatEngine._load_persona_if_needed(user_id)
         cached = ChatEngine._persona_cache[user_id]
         return {
@@ -56,19 +51,32 @@ class ChatEngine:
             "voice_id": cached["voice_id"],
         }
 
-    # === Public methods for chat engine to get persona information ===
+    # === Public methods for chat operations ===
     @staticmethod
     def get_voice_id(user_id: str) -> str:
-        """Public method to get current persona's voice ID."""
         ChatEngine._load_persona_if_needed(user_id)
         return ChatEngine._persona_cache[user_id]["voice_id"]
 
-    # === Generate a reply using the current persona ===
+    # === Context management ===
+    @staticmethod
+    def clear_context(user_id: str):
+        """Completely clears conversation cache for a user."""
+        if user_id in ChatEngine._persona_cache:
+            del ChatEngine._persona_cache[user_id]
+            print(f"🧹 Cleared and invalidated persona cache for user {user_id}")
+
+    # === Persona management ===
+    @staticmethod
+    def preload_persona(user_id: str):
+        """
+        Force-loads persona messages/voice after switching personas.
+        """
+        ChatEngine._load_persona_if_needed(user_id)
+        print(f"⚡ Preloaded persona for user {user_id}")
+
+    # === Chat operations ===
     @staticmethod
     async def generate_reply(user_id: str, message: str, mode: str) -> dict:
-        """
-        Generates a reply using the current persona for the given user.
-        """
         if mode == "safe":
             return await ChatEngine._use_openrouter(user_id, message)
         else:
@@ -80,12 +88,9 @@ class ChatEngine:
                 "voice_id": None,
             }
 
-    # === Use OpenRouter API to generate a chat reply ===
+    # === OpenRouter API interaction ===
     @staticmethod
     async def _use_openrouter(user_id: str, message: str) -> dict:
-        """
-        Sends the chat request to OpenRouter with persona-specific messages.
-        """
         persona = ChatEngine._get_persona(user_id)
         messages = persona["messages"]
         voice_id = persona["voice_id"]
