@@ -1,4 +1,5 @@
 import struct
+import numpy as np
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtWidgets import QSizePolicy
 from OpenGL.GL import *
@@ -10,7 +11,7 @@ import os
 class VRMContainer(QOpenGLWidget):
     """
     OpenGL-based VRM container for rendering 3D VRM models.
-    Loads and renders all meshes and primitives combined.
+    Now calculates normals for proper lighting.
     """
 
     def __init__(self, parent=None):
@@ -25,6 +26,7 @@ class VRMContainer(QOpenGLWidget):
         self.rotation_angle = 0.0
         self.vertices = []
         self.faces = []
+        self.normals = []
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
@@ -32,6 +34,7 @@ class VRMContainer(QOpenGLWidget):
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glEnable(GL_COLOR_MATERIAL)
+        glEnable(GL_NORMALIZE)  # Auto normalize normals
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
 
     def resizeGL(self, width, height):
@@ -49,11 +52,13 @@ class VRMContainer(QOpenGLWidget):
         self.rotation_angle += 0.2
         glRotatef(self.rotation_angle, 0, 1, 0)
 
-        glColor3f(0.6, 0.8, 1.0)
+        glColor3f(0.8, 0.8, 1.0)
         glBegin(GL_TRIANGLES)
-        for face in self.faces:
-            for vertex_index in face:
+        for i, face in enumerate(self.faces):
+            for j, vertex_index in enumerate(face):
                 if vertex_index < len(self.vertices):
+                    nx, ny, nz = self.normals[i]
+                    glNormal3f(nx, ny, nz)
                     vx, vy, vz = self.vertices[vertex_index]
                     glVertex3f(vx, vy, vz)
         glEnd()
@@ -76,13 +81,12 @@ class VRMContainer(QOpenGLWidget):
 
             for mesh in model.meshes:
                 for primitive in mesh.primitives:
-                    # --- Vertices ---
                     pos_accessor = model.accessors[primitive.attributes.POSITION]
                     pos_buffer_view = model.bufferViews[pos_accessor.bufferView]
                     pos_buffer = model.buffers[pos_buffer_view.buffer]
                     pos_data = model.get_data_from_buffer_uri(pos_buffer.uri)
 
-                    stride = 12  # 3 floats * 4 bytes
+                    stride = 12
                     base_vertex_index = len(all_vertices)
                     vertices = []
                     for i in range(pos_accessor.count):
@@ -91,22 +95,20 @@ class VRMContainer(QOpenGLWidget):
                         vertices.append((x, y, z))
                     all_vertices.extend(vertices)
 
-                    # --- Indices (faces) ---
                     idx_accessor = model.accessors[primitive.indices]
                     idx_buffer_view = model.bufferViews[idx_accessor.bufferView]
                     idx_buffer = model.buffers[idx_buffer_view.buffer]
                     idx_data = model.get_data_from_buffer_uri(idx_buffer.uri)
 
-                    # Determine index size
-                    if idx_accessor.componentType == 5121:  # UNSIGNED_BYTE
+                    if idx_accessor.componentType == 5121:
                         fmt = "<BBB"
                         step = 3
                         stride_idx = 1
-                    elif idx_accessor.componentType == 5123:  # UNSIGNED_SHORT
+                    elif idx_accessor.componentType == 5123:
                         fmt = "<HHH"
                         step = 6
                         stride_idx = 2
-                    else:  # 5125: UNSIGNED_INT
+                    else:
                         fmt = "<III"
                         step = 12
                         stride_idx = 4
@@ -118,7 +120,6 @@ class VRMContainer(QOpenGLWidget):
                             faces.append((base_vertex_index + v1, base_vertex_index + v2, base_vertex_index + v3))
                     all_faces.extend(faces)
 
-            # Normalize and center the model
             xs = [v[0] for v in all_vertices]
             ys = [v[1] for v in all_vertices]
             zs = [v[2] for v in all_vertices]
@@ -135,6 +136,16 @@ class VRMContainer(QOpenGLWidget):
             ]
             self.faces = all_faces
 
-            print(f"✅ VRM loaded: {len(self.vertices)} vertices, {len(self.faces)} faces")
+            # === NEW: Calculate normals ===
+            normals = []
+            verts_np = np.array(self.vertices)
+            for face in self.faces:
+                v1, v2, v3 = [verts_np[idx] for idx in face]
+                normal = np.cross(v2 - v1, v3 - v1)
+                normal = normal / (np.linalg.norm(normal) + 1e-8)
+                normals.append(normal)
+            self.normals = normals
+
+            print(f"✅ VRM loaded: {len(self.vertices)} vertices, {len(self.faces)} faces with normals")
         except Exception as e:
             print(f"❌ Failed to load VRM: {e}")
