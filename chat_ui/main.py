@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QSplashScreen
 from PyQt6.QtCore import Qt, QTimer
@@ -7,7 +8,7 @@ from PyQt6.QtGui import QIcon, QPixmap
 from chat_ui.center.center_column_container import CenterColumnContainer
 from chat_ui.left.left_column_container import LeftColumnContainer
 from chat_ui.right.right_column_container import RightColumnContainer
-from chat_ui.services.persona_service import PersonaService  # NEW import
+from chat_ui.services.persona_service import PersonaService
 
 # === Ensure the chat_ui directory is in the Python path for imports ===
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -49,8 +50,25 @@ def main():
     center_column.chat_input.chat_window = right_column.chat_window
     right_column.chat_window.input_box = center_column.chat_input
 
-    # ✅ Register chat_window globally for PersonaService
+    # ✅ Register components with PersonaService
     PersonaService.register_chat_window(right_column.chat_window)
+    PersonaService.register_vrm_container(center_column.vrm_container)
+
+    # ✅ Auto-load active persona VRM on startup
+    active_persona = PersonaService.get_active_persona()
+    if active_persona:
+        vrm_model = active_persona.get("vrm_model", "")
+        locked = active_persona.get("locked", False)
+
+        if not locked and vrm_model:
+            vrm_path = os.path.join(PersonaService.VRM_DIR, vrm_model)
+            if os.path.exists(vrm_path):
+                center_column.vrm_container.load_vrm(vrm_path)
+                print(f"✅ Auto-loaded active persona VRM: {vrm_model}")
+            else:
+                print(f"⚠️ VRM file missing on startup: {vrm_path}")
+        else:
+            print("🔒 Active persona is locked or has no VRM.")
 
     # ✅ Column proportions
     layout.setColumnStretch(0, 1)

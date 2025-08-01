@@ -51,7 +51,7 @@ def load_persona(file_path: str) -> dict:
 # === Load only persona metadata (name, voice_id, vrm_model) ===
 def load_persona_metadata(file_path: str) -> dict:
     """
-    Loads only persona metadata (name, voice_id, vrm_model).
+    Loads only persona metadata (name, voice_id, vrm_model, locked, validation_token).
     Does NOT build system messages.
     """
     path = Path(file_path)
@@ -63,6 +63,9 @@ def load_persona_metadata(file_path: str) -> dict:
 
     return {
         "name": data.get("name", path.stem),
-        "voice_id": data.get("voice_id", None),
-        "vrm_model": data.get("vrm_model", None),
+        "voice_id": data.get("voice_id", ""),
+        "vrm_model": data.get("vrm_model", ""),
+        "locked": data.get("locked", False),
+        "validation_token": data.get("validation_token", ""),
     }
+

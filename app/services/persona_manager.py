@@ -27,7 +27,9 @@ class PersonaManager:
                 "name": meta["name"],
                 "file": file.name,
                 "voice_id": meta["voice_id"],
-                "vrm_model": meta["vrm_model"]
+                "vrm_model": meta["vrm_model"],
+                "locked": meta.get("locked", False),
+                "validation_token": meta.get("validation_token", ""),
             })
         return personas
     
@@ -97,6 +99,8 @@ class PersonaManager:
                     "file": default_file,
                     "voice_id": meta["voice_id"],
                     "vrm_model": meta["vrm_model"],
+                    "locked": meta.get("locked", False),
+                    "validation_token": meta.get("validation_token", ""),
                 }
             else:
                 # If somehow default is missing, fall back to first available
@@ -116,6 +120,8 @@ class PersonaManager:
             "file": active_file,
             "voice_id": meta["voice_id"],
             "vrm_model": meta["vrm_model"],
+            "locked": meta.get("locked", False),
+            "validation_token": meta.get("validation_token", ""),
         }
 
 
