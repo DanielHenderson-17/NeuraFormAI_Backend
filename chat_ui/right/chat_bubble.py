@@ -20,8 +20,9 @@ class ChatBubble(QWidget):
         bubble_bg = "#ffffff" if self.align_right else "#d1ecf1"
         text_color = "#000000"
 
+        # === Bubble Content Layout ===
         content_layout = QVBoxLayout()
-        content_layout.setSpacing(8)
+        content_layout.setSpacing(4)
         content_layout.setContentsMargins(12, 12, 12, 12)
 
         parts = self.message.split("```")
@@ -43,7 +44,7 @@ class ChatBubble(QWidget):
                 content_layout.addWidget(CodeBlockWidget(code, lang))
             else:
                 if part.strip():
-                    self.label = QLabel(f"{self.sender_name}: {part.strip()}")  # ← store it
+                    self.label = QLabel(part.strip())  # ✅ Removed sender name from message
                     self.label.setWordWrap(True)
                     self.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                     self.label.setStyleSheet(f"""
@@ -58,11 +59,13 @@ class ChatBubble(QWidget):
                     content_layout.addWidget(self.label)
             is_code = not is_code
 
-        timestamp = QLabel(datetime.now().strftime("%I:%M %p").lstrip("0"))
-        timestamp.setStyleSheet("color: gray; font-size: 10px; margin-top: 4px;")
-        timestamp.setAlignment(Qt.AlignmentFlag.AlignRight if self.align_right else Qt.AlignmentFlag.AlignLeft)
-        content_layout.addWidget(timestamp)
+        # === Footer with name + timestamp ===
+        footer = QLabel(f"{self.sender_name} • {datetime.now().strftime('%I:%M %p').lstrip('0')}")
+        footer.setStyleSheet("color: gray; font-size: 10px; margin-top: 4px;")
+        footer.setAlignment(Qt.AlignmentFlag.AlignRight if self.align_right else Qt.AlignmentFlag.AlignLeft)
+        content_layout.addWidget(footer)
 
+        # === Bubble container ===
         bubble_container = QWidget()
         bubble_container.setLayout(content_layout)
         bubble_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -70,6 +73,7 @@ class ChatBubble(QWidget):
             int(self.parentWidget().width() * 0.75) if self.parentWidget() else 800
         )
 
+        # === Main layout ===
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(8, 2, 8, 2)
         if self.align_right:
@@ -83,4 +87,4 @@ class ChatBubble(QWidget):
     def set_message(self, new_message):
         self.message = new_message
         if hasattr(self, "label") and self.label:
-            self.label.setText(f"{self.sender_name}: {new_message}")
+            self.label.setText(new_message)  # ✅ No sender name prefix

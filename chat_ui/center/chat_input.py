@@ -279,3 +279,15 @@ class ChatInput(QWidget):
     # ✅ Returns whether the voice toggle is enabled
     def is_voice_enabled(self):
         return self.voice_toggle.is_enabled()
+    
+    # === Send Greeting Message
+    # ✅ Automatically sends a greeting message after persona switch
+    def send_greeting_message(self):
+        """
+        Sends an automatic greeting request after persona swap.
+        This triggers AI bubble + TTS if enabled.
+        """
+        message = "Introduce yourself briefly as the new persona."
+        print(f"🤖 Auto-sending greeting message: {message}")
+        QCoreApplication.postEvent(self.chat_window, UserInputEvent(message))
+

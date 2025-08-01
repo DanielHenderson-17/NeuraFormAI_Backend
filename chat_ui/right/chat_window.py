@@ -29,6 +29,15 @@ class UserInputEvent(QEvent):
         self.text = text
 
 
+class AutoGreetingEvent(QEvent):
+    EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
+
+    # === Event to trigger hidden auto-greeting message ===
+    def __init__(self, text):
+        super().__init__(AutoGreetingEvent.EVENT_TYPE)
+        self.text = text
+
+
 class TypingEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
@@ -128,7 +137,6 @@ class ChatWindow(QWidget):
 
     # === Get the reply from the AI ===
     def fetch_reply(self, message):
-        # 🔄 Refresh active persona first
         user_id = SessionManager.get_user_id()
         active_persona = PersonaService.get_active_persona()
         new_name = active_persona.get("name", "Assistant")
@@ -136,7 +144,7 @@ class ChatWindow(QWidget):
             print(f"🔄 [ChatWindow] Persona changed from {self.persona_name} → {new_name}")
             self.persona_name = new_name
     
-        # Now show typing bubble
+        # Show typing bubble
         QCoreApplication.postEvent(self, TypingEvent())
     
         voice_enabled = self.input_box.is_voice_enabled() if self.input_box else False 
@@ -175,7 +183,7 @@ class ChatWindow(QWidget):
         else:
             QCoreApplication.postEvent(self, ReplyEvent(reply_text))
 
-    # === Handle events for user input, AI replies, and typing indication ===
+    # === Handle events ===
     def event(self, event):
         if event.type() == ReplyEvent.EVENT_TYPE:
             print("[ReplyEvent] AI reply displayed:", event.text)
@@ -193,9 +201,14 @@ class ChatWindow(QWidget):
             threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
             return True
 
+        elif event.type() == AutoGreetingEvent.EVENT_TYPE:
+            print(f"🟢 [ChatWindow] Auto-greeting triggered: {event.text}")
+            threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
+            return True
+
         return super().event(event)
 
-    # === Insert a typing bubble to indicate AI is thinking ===
+    # === Insert a typing bubble ===
     def insert_typing_bubble(self):
         if self.typing_label:
             return
@@ -214,7 +227,7 @@ class ChatWindow(QWidget):
         self.typing_timer.timeout.connect(self.update_typing_ellipsis)
         self.typing_timer.start(500)
 
-    # === Remove the typing bubble when AI stops typing ===
+    # === Remove typing bubble ===
     def remove_typing_bubble(self):
         if self.typing_timer:
             self.typing_timer.stop()
@@ -225,7 +238,7 @@ class ChatWindow(QWidget):
             self.typing_label = None
         self.typing_dots = 0
 
-    # === Update the typing ellipsis dynamically ===
+    # === Update typing ellipsis ===
     def update_typing_ellipsis(self):
         if not self.typing_label:
             return

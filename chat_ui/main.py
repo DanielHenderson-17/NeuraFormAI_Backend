@@ -7,6 +7,7 @@ from PyQt6.QtGui import QIcon, QPixmap
 from chat_ui.center.center_column_container import CenterColumnContainer
 from chat_ui.left.left_column_container import LeftColumnContainer
 from chat_ui.right.right_column_container import RightColumnContainer
+from chat_ui.services.persona_service import PersonaService  # NEW import
 
 # === Ensure the chat_ui directory is in the Python path for imports ===
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -47,6 +48,9 @@ def main():
     # ✅ Wire up chat input and window
     center_column.chat_input.chat_window = right_column.chat_window
     right_column.chat_window.input_box = center_column.chat_input
+
+    # ✅ Register chat_window globally for PersonaService
+    PersonaService.register_chat_window(right_column.chat_window)
 
     # ✅ Column proportions
     layout.setColumnStretch(0, 1)

@@ -24,13 +24,16 @@ class PersonaService:
     """
 
     BASE_URL = "http://127.0.0.1:8000/api/personas"
+    chat_window = None  # Registered global reference
 
-    # === Class methods for persona management ===
+    @classmethod
+    def register_chat_window(cls, chat_window):
+        """Registers chat_window instance for auto-greeting."""
+        cls.chat_window = chat_window
+
     @classmethod
     def list_personas(cls):
-        """
-        Fetches all available personas from the backend.
-        """
+        """Fetches all available personas from the backend."""
         try:
             print("🔎 [PersonaService] Fetching persona list...")
             response = requests.get(f"{cls.BASE_URL}/list")
@@ -42,12 +45,9 @@ class PersonaService:
             print(f"❌ [PersonaService] Failed to fetch persona list: {e}")
             return []
 
-    # === Active persona management ===
     @classmethod
     def get_active_persona(cls):
-        """
-        Gets the active persona for this user.
-        """
+        """Gets the active persona for this user."""
         try:
             user_id = SessionManager.get_user_id()
             print(f"🔎 [PersonaService] Fetching active persona for user_id={user_id}")
@@ -61,12 +61,9 @@ class PersonaService:
             print(f"❌ [PersonaService] Failed to fetch active persona: {e}")
             return {}
 
-    # === Persona selection ===
     @classmethod
     def select_persona(cls, persona_name: str):
-        """
-        Sets a new active persona for this user.
-        """
+        """Sets a new active persona for this user and triggers a hidden auto-greeting."""
         try:
             user_id = SessionManager.get_user_id()
             print(f"🛠️ [PersonaService] Selecting persona '{persona_name}' for user_id={user_id}")
@@ -75,7 +72,19 @@ class PersonaService:
             print(f"🛠️ [PersonaService] Status: {response.status_code}")
             print(f"🛠️ [PersonaService] Response: {response.text}")
             response.raise_for_status()
-            return response.json().get("active_persona", {})
+            active_persona = response.json().get("active_persona", {})
+
+            # === Hidden auto-greeting ===
+            if cls.chat_window:
+                from PyQt6.QtCore import QCoreApplication
+                from chat_ui.right.chat_window import AutoGreetingEvent
+
+                message = "Introduce yourself briefly as the new persona."
+                print(f"🤖 [PersonaService] Auto-sending hidden greeting message: {message}")
+                QCoreApplication.postEvent(cls.chat_window, AutoGreetingEvent(message))
+
+            return active_persona
+
         except Exception as e:
             print(f"❌ [PersonaService] Failed to select persona: {e}")
             return {}
