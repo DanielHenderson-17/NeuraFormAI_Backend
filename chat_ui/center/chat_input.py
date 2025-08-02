@@ -50,7 +50,7 @@ class ChatInput(QWidget):
 
         # === Voice toggle container ===
         toggle_container = QWidget()
-        toggle_container.setStyleSheet("background: transparent; border: 1px solid green;")
+        toggle_container.setStyleSheet("background: transparent;")
         
         toggle_row = QHBoxLayout(toggle_container)
         toggle_row.setContentsMargins(0, 0, 6, 0)
