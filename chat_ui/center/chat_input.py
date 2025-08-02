@@ -6,6 +6,7 @@ from PyQt6.QtCore import QSize, QCoreApplication, Qt, QTimer
 from PyQt6.QtGui import QIcon, QKeyEvent
 
 from chat_ui.voice_recorder import VoiceRecorder
+from chat_ui.components.VoiceToggleSwitch import VoiceToggleSwitch
 from chat_ui.right.chat_window import UserInputEvent
 from chat_ui.services.persona_service import PersonaService
 
@@ -33,15 +34,33 @@ class ChatInput(QWidget):
         self.recorder = VoiceRecorder()
         self.voice_mode = False
 
+        # --- FIX: AGGRESSIVE TRANSPARENCY AND BORDER FOR DEBUGGING ---
+        # This forces the main ChatInput widget's background to be transparent
+        # and adds a clear border to see if this is the widget blocking the view.
         self.setStyleSheet("background-color: transparent; border: 2px solid purple;")
         self.setAutoFillBackground(False)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
 
         # === Outer Layout ===
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 20)
         outer_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
+
+        # === Voice toggle container ===
+        toggle_container = QWidget()
+        toggle_container.setStyleSheet("background: transparent; border: 1px solid green;")
+        
+        toggle_row = QHBoxLayout(toggle_container)
+        toggle_row.setContentsMargins(0, 0, 6, 0)
+        toggle_row.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self.voice_toggle = VoiceToggleSwitch()
+        self.voice_toggle.setStyleSheet("background-color: transparent;")
+        
+        toggle_row.addWidget(self.voice_toggle)
+        outer_layout.addWidget(toggle_container)
 
         # === Chat input bubble ===
         self.bubble = QFrame()
@@ -90,6 +109,8 @@ class ChatInput(QWidget):
                 background: none;
             }
         """)
+
+        # === Size and Scroll Behavior ===
         self.entry.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         self.entry.setMinimumHeight(36)
         self.entry.setMaximumHeight(120)
@@ -102,6 +123,7 @@ class ChatInput(QWidget):
         bottom_row.setContentsMargins(0, 0, 0, 0)
         bottom_row.setSpacing(8)
 
+        # === Left and Right Button Layouts ===
         left_buttons = QHBoxLayout()
         left_buttons.setSpacing(6)
         left_buttons.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -138,6 +160,7 @@ class ChatInput(QWidget):
         self.send_button.clicked.connect(self.send_message)
         self.send_button.setStyleSheet("border: none; background-color: transparent;")
 
+        # === Style for Toggle Buttons ===
         toggle_style = """
             QPushButton {
                 border: none;
@@ -151,6 +174,7 @@ class ChatInput(QWidget):
         for btn in [self.chat_toggle_button, self.mic_button]:
             btn.setStyleSheet(toggle_style)
 
+        # === Add buttons to layouts ===
         right_buttons.addWidget(self.chat_toggle_button)
         right_buttons.addWidget(self.mic_button)
         right_buttons.addWidget(self.send_button)
@@ -237,8 +261,8 @@ class ChatInput(QWidget):
             self.set_input_mode("mic")
 
     def is_voice_enabled(self):
-        return False  # toggle removed
-
+        return self.voice_toggle.is_enabled()
+    
     def send_greeting_message(self):
         message = "Introduce yourself briefly as the new persona."
         print(f"🤖 Auto-sending greeting message: {message}")
