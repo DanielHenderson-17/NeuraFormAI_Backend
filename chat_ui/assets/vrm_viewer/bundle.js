@@ -65253,6 +65253,9 @@ void main() {
 
 	// The rest of your VRM viewer code goes here
 	let scene, camera, renderer, vrm, controls, clock;
+	let blinkTimer = 0;
+	let isBlinking = false;
+	let lastBlinkTime = 0;
 
 	function init() {
 	  console.log("Starting script execution.");
@@ -65293,11 +65296,64 @@ void main() {
 	function animate() {
 	  requestAnimationFrame(animate);
 	  const delta = clock.getDelta();
+
 	  if (vrm) {
 	    vrm.update(delta);
+	    updateBlinking(delta);
 	  }
+
 	  controls.update();
 	  renderer.render(scene, camera);
+	}
+
+	function updateBlinking(delta) {
+	  if (!vrm || !vrm.expressionManager) return;
+
+	  const currentTime = clock.getElapsedTime();
+
+	  // Random blink interval between 2-6 seconds
+	  if (!isBlinking && currentTime - lastBlinkTime > 2 + Math.random() * 4) {
+	    startBlink();
+	  }
+
+	  if (isBlinking) {
+	    blinkTimer += delta;
+
+	    // Blink duration is about 0.15 seconds
+	    if (blinkTimer >= 0.15) {
+	      endBlink();
+	    }
+	  }
+	}
+
+	function startBlink() {
+	  if (!vrm || !vrm.expressionManager) return;
+
+	  isBlinking = true;
+	  blinkTimer = 0;
+
+	  // Set blink expression to 1.0 (fully closed eyes)
+	  const blinkExpression = vrm.expressionManager.getExpression("blink");
+	  if (blinkExpression) {
+	    blinkExpression.weight = 1.0;
+	  }
+
+	  console.log("Blink started");
+	}
+
+	function endBlink() {
+	  if (!vrm || !vrm.expressionManager) return;
+
+	  isBlinking = false;
+	  lastBlinkTime = clock.getElapsedTime();
+
+	  // Set blink expression back to 0.0 (open eyes)
+	  const blinkExpression = vrm.expressionManager.getExpression("blink");
+	  if (blinkExpression) {
+	    blinkExpression.weight = 0.0;
+	  }
+
+	  console.log("Blink ended");
 	}
 
 	function onWindowResize() {
@@ -65325,6 +65381,20 @@ void main() {
 	      if (vrm) {
 	        VRMUtils.rotateVRM0(vrm);
 	        scene.add(vrm.scene);
+
+	        // Reset blink state for new model
+	        isBlinking = false;
+	        blinkTimer = 0;
+	        lastBlinkTime = clock.getElapsedTime();
+
+	        // Log available expressions for debugging
+	        if (vrm.expressionManager) {
+	          console.log(
+	            "Available expressions:",
+	            vrm.expressionManager.expressions.map((exp) => exp.expressionName)
+	          );
+	        }
+
 	        console.log("VRM loaded successfully!");
 	      } else {
 	        console.error("The loaded GLTF is not a valid VRM.", gltf);
@@ -65335,6 +65405,13 @@ void main() {
 	      console.error("Error loading VRM:", error);
 	    }
 	  );
+	};
+
+	// ✅ Global function to manually trigger blink
+	window.triggerBlink = function () {
+	  if (vrm && !isBlinking) {
+	    startBlink();
+	  }
 	};
 
 	init();

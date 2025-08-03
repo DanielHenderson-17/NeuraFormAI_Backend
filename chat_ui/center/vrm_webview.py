@@ -102,6 +102,14 @@ class VRMWebView(QWidget):
         self._pending_vrm = vrm_url
         self._check_timer.start()
 
+    def trigger_blink(self):
+        """
+        Manually trigger a blink animation on the current VRM model.
+        """
+        print("🟢 [Python] Triggering blink animation...")
+        js_trigger = "window.triggerBlink();"
+        self.webview.page().runJavaScript(js_trigger)
+
     def _check_ready(self):
         js_check = "window.vrmViewerReady === true;"
         self.webview.page().runJavaScript(js_check, self._on_ready_check)

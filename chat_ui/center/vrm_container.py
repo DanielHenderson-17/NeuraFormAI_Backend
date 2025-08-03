@@ -24,3 +24,10 @@ class VRMContainer(QWidget):
         """
         print(f"🟢 Loading VRM into WebView: {vrm_path}")
         self.vrm_renderer.load_vrm(vrm_path)
+    
+    def trigger_blink(self):
+        """
+        Manually trigger a blink animation on the current VRM model.
+        """
+        print(f"🟢 Triggering blink on VRM model")
+        self.vrm_renderer.trigger_blink()

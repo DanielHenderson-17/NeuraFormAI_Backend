@@ -3,16 +3,22 @@ REM =============================
 REM NeuraFormAI Project Runner
 REM =============================
 
-REM 1️⃣ Activate virtual environment
+REM 1️⃣ Rebuild VRM viewer bundle
+echo 🔄 Rebuilding VRM viewer bundle...
+cd chat_ui\assets\vrm_viewer
+call npx rollup -c
+cd ..\..\..
+
+REM 2️⃣ Activate virtual environment
 call tts-venv\Scripts\activate
 
-REM 2️⃣ Start backend server
+REM 3️⃣ Start backend server
 start cmd /k "uvicorn app.main:app --reload"
 
-REM 3️⃣ Launch frontend PyQt app with Chromium flags
+REM 4️⃣ Launch frontend PyQt app with Chromium flags
 start cmd /k "python launch.py"
 
-REM 4️⃣ (Optional) Run unit tests
+REM 5️⃣ (Optional) Run unit tests
 REM Uncomment next line if you want tests to run automatically
 REM pytest tests/
 
