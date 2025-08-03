@@ -90,8 +90,6 @@ function startBlink() {
   if (blinkExpression) {
     blinkExpression.weight = 1.0;
   }
-
-  console.log("Blink started");
 }
 
 function endBlink() {
@@ -105,8 +103,6 @@ function endBlink() {
   if (blinkExpression) {
     blinkExpression.weight = 0.0;
   }
-
-  console.log("Blink ended");
 }
 
 function onWindowResize() {

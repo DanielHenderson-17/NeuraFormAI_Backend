@@ -65337,8 +65337,6 @@ void main() {
 	  if (blinkExpression) {
 	    blinkExpression.weight = 1.0;
 	  }
-
-	  console.log("Blink started");
 	}
 
 	function endBlink() {
@@ -65352,8 +65350,6 @@ void main() {
 	  if (blinkExpression) {
 	    blinkExpression.weight = 0.0;
 	  }
-
-	  console.log("Blink ended");
 	}
 
 	function onWindowResize() {
