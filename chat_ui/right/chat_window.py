@@ -196,9 +196,8 @@ class VRMExpressionManager:
                 
                 # Calculate timing based on mode
                 if total_duration and len(phonemes) > 0:
-                    # Voice mode: create more phonemes for faster lip movement while matching audio duration
-                    # Generate more phonemes by adding transitions and breaking words further
-                    enhanced_phonemes = self._enhance_phonemes_for_voice(phonemes, text)
+                    # Voice mode: create phonemes that match the audio duration exactly
+                    enhanced_phonemes = self._enhance_phonemes_for_voice(phonemes, text, total_duration)
                     phoneme_duration = total_duration / len(enhanced_phonemes)
                     print(f"🎭 Voice mode: {total_duration:.2f}s total, {len(enhanced_phonemes)} phonemes, {phoneme_duration:.3f}s per phoneme")
                     phonemes = enhanced_phonemes
@@ -214,6 +213,13 @@ class VRMExpressionManager:
                 self.lip_sync_timer.timeout.connect(self._next_phoneme)
                 self.lip_sync_timer.start(int(phoneme_duration * 1000))  # Convert to milliseconds
                 
+                # Set a safety timer to stop lip-sync exactly when audio should end
+                if total_duration:
+                    self.safety_timer = QTimer()
+                    self.safety_timer.setSingleShot(True)
+                    self.safety_timer.timeout.connect(self.stop_lip_sync)
+                    self.safety_timer.start(int(total_duration * 1000))  # Convert to milliseconds
+                
                 # Start with first phoneme
                 if phonemes:
                     self._set_current_phoneme()
@@ -223,41 +229,52 @@ class VRMExpressionManager:
         else:
             print(f"🎭 Would start lip-sync (viewer not connected)")
     
-    def _enhance_phonemes_for_voice(self, base_phonemes, text):
+    def _enhance_phonemes_for_voice(self, base_phonemes, text, total_duration):
         """Enhance phonemes for voice mode to create faster, more natural lip movement"""
         enhanced = []
         words = text.split()
         
+        # Use a fixed, consistent phoneme duration for smooth movement
+        # This ensures uniform timing throughout the animation
+        fixed_phoneme_duration = 0.1  # 100ms per phoneme for smooth, consistent movement
+        
+        # Calculate exact number of phonemes needed
+        target_phoneme_count = max(1, int(total_duration / fixed_phoneme_duration))
+        
+        # Distribute phonemes evenly across words
+        phonemes_per_word = max(1, target_phoneme_count // len(words))
+        
         for i, word in enumerate(words):
             word_lower = word.lower()
             
-            # Slightly faster phoneme enhancement for voice mode
+            # Each word gets the same number of phonemes for consistency
+            word_phonemes = []
+            
             if len(word) <= 3:
                 # Very short words: just the base phoneme
-                enhanced.append(base_phonemes[i] if i < len(base_phonemes) else 'aa')
-            elif len(word) <= 6:
+                word_phonemes.append(base_phonemes[i] if i < len(base_phonemes) else 'aa')
+            elif len(word) <= 5:
                 # Short words: base phoneme + one transition
                 base_phoneme = base_phonemes[i] if i < len(base_phonemes) else 'aa'
-                enhanced.append(base_phoneme)
-                enhanced.append('ih')  # Brief transition
-            elif len(word) <= 9:
-                # Medium words: base phoneme + two transitions
-                base_phoneme = base_phonemes[i] if i < len(base_phonemes) else 'aa'
-                enhanced.append(base_phoneme)
-                enhanced.append('ih')  # Transition
-                enhanced.append(base_phoneme)  # Return to base
+                word_phonemes.append(base_phoneme)
+                word_phonemes.append('ih')  # Brief transition
             else:
-                # Long words: base phoneme + three transitions
+                # Longer words: base phoneme + transitions
                 base_phoneme = base_phonemes[i] if i < len(base_phonemes) else 'aa'
-                enhanced.append(base_phoneme)
-                enhanced.append('ih')  # Transition
-                enhanced.append(base_phoneme)  # Return
-                enhanced.append('ih')  # Another transition
-                enhanced.append(base_phoneme)  # Final position
+                word_phonemes.append(base_phoneme)
+                word_phonemes.append('ih')  # Transition
+                word_phonemes.append(base_phoneme)  # Return to base
+            
+            # Add word phonemes to enhanced list
+            enhanced.extend(word_phonemes)
             
             # Add brief pause between words (except for the last word)
             if i < len(words) - 1:
                 enhanced.append('ih')  # Brief closed mouth between words
+        
+        # Ensure we don't exceed the target count
+        if len(enhanced) > target_phoneme_count:
+            enhanced = enhanced[:target_phoneme_count]
         
         return enhanced
     
@@ -266,6 +283,10 @@ class VRMExpressionManager:
         if hasattr(self, 'lip_sync_timer') and self.lip_sync_timer:
             self.lip_sync_timer.stop()
             self.lip_sync_timer = None
+        
+        if hasattr(self, 'safety_timer') and self.safety_timer:
+            self.safety_timer.stop()
+            self.safety_timer = None
         
         if hasattr(self, 'lip_sync_phonemes'):
             self.lip_sync_phonemes = None
@@ -482,16 +503,19 @@ class ChatWindow(QWidget):
         print(f"🟢 [ChatWindow] Reply received: {reply_text}")
     
         if voice_enabled:
+            # Start voice playback in a separate thread
             def on_start(audio_duration=None):
                 # Create a custom event that includes audio duration for voice sync
                 QCoreApplication.postEvent(self, ReplyEvent(reply_text, audio_duration))
     
-            threading.Thread(
+            # Start voice playback in background thread
+            voice_thread = threading.Thread(
                 target=self.voice_player.play_reply_from_backend,
                 args=(reply_text,),
                 kwargs={"voice_enabled": True, "on_start": on_start},
                 daemon=True
-            ).start()
+            )
+            voice_thread.start()
         else:
             QCoreApplication.postEvent(self, ReplyEvent(reply_text))
 
@@ -511,7 +535,7 @@ class ChatWindow(QWidget):
                 vrm_expression_manager.start_lip_sync(event.text, total_duration=event.audio_duration)
             else:
                 print(f"🎭 Text mode: using fixed timing")
-                vrm_expression_manager.start_lip_sync(event.text, duration_per_word=0.12)
+                vrm_expression_manager.start_lip_sync(event.text, duration_per_word=0.08)
             
             # 🎭 Analyze AI response for emotional content and trigger appropriate expression
             ai_emotion = detect_emotion(event.text)

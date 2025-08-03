@@ -70,16 +70,25 @@ def speak_from_text(
     print(f"🎙️ [Backend] speak-from-text called for user_id={user_id}")
     print(f"📨 Payload: \"{reply[:60]}...\"")
 
-    # Get persona voice via ChatEngine helper (per user session)
-    voice_id = ChatEngine.get_voice_id(user_id)
-    print(f"🗣️ Using voice_id={voice_id}")
+    try:
+        # Get persona voice via ChatEngine helper (per user session)
+        voice_id = ChatEngine.get_voice_id(user_id)
+        print(f"🗣️ Using voice_id={voice_id}")
 
-    # Generate and stream audio
-    audio_stream = synthesize_reply_as_stream(reply, voice_id)
-    return StreamingResponse(
-        content=audio_stream,
-        media_type="audio/mpeg",
-        status_code=200
-    )
+        # Generate and stream audio
+        print(f"🎙️ [Backend] Calling synthesize_reply_as_stream...")
+        audio_stream = synthesize_reply_as_stream(reply, voice_id)
+        print(f"🎙️ [Backend] Audio stream created, returning StreamingResponse...")
+        
+        return StreamingResponse(
+            content=audio_stream,
+            media_type="audio/mpeg",
+            status_code=200
+        )
+    except Exception as e:
+        print(f"❌ [Backend] Error in speak-from-text: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 

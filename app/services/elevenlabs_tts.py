@@ -18,14 +18,35 @@ def synthesize_reply_as_stream(text: str, voice_id: str = None):
     automatically retrieves it from the currently active persona
     using ChatEngine (single source of truth).
     """
+    print(f"🎙️ [ElevenLabs] Starting TTS synthesis...")
+    print(f"🎙️ [ElevenLabs] API_KEY exists: {bool(API_KEY)}")
+    print(f"🎙️ [ElevenLabs] API_KEY length: {len(API_KEY) if API_KEY else 0}")
+    
     if not voice_id:
         voice_id = ChatEngine.get_voice_id()
         print(f"🎙️ No voice_id provided. Using persona voice: {voice_id}")
 
     cleaned_text = sanitize_for_speech(text)
+    print(f"🎙️ [ElevenLabs] Cleaned text: {cleaned_text[:50]}...")
+    print(f"🎙️ [ElevenLabs] Voice ID: {voice_id}")
 
-    return client.text_to_speech.stream(
-        voice_id=voice_id,
-        model_id="eleven_monolingual_v1",
-        text=cleaned_text,
-    )
+    try:
+        print(f"🎙️ [ElevenLabs] Calling ElevenLabs API...")
+        stream = client.text_to_speech.stream(
+            voice_id=voice_id,
+            model_id="eleven_monolingual_v1",
+            text=cleaned_text,
+        )
+        print(f"🎙️ [ElevenLabs] Stream created successfully")
+        return stream
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "quota" in error_msg or "credits" in error_msg or "limit" in error_msg:
+            print(f"❌ [ElevenLabs] CREDIT LIMIT REACHED: {e}")
+            print(f"💡 [ElevenLabs] Please add credits to your ElevenLabs account")
+        elif "unauthorized" in error_msg or "401" in error_msg:
+            print(f"❌ [ElevenLabs] API KEY INVALID: {e}")
+            print(f"💡 [ElevenLabs] Please check your ElevenLabs API key")
+        else:
+            print(f"❌ [ElevenLabs] Error creating stream: {e}")
+        raise
