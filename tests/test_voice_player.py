@@ -45,7 +45,7 @@ def test_successful_playback(mock_sd, mock_post, player, monkeypatch):
         mock_post.return_value = mock_response
 
         called = {"on_start": False}
-        def cb():
+        def cb(*args):
             called["on_start"] = True
 
         player.play_reply_from_backend("Test message", voice_enabled=True, on_start=cb)

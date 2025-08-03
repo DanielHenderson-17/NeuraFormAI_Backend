@@ -30,8 +30,7 @@ class JSConsoleHandler(QWebEnginePage):
         # Don't print empty messages
         if message.strip():
             print(f"🔴 [JS Console][{level_str}] {message} (at {sourceId}:{lineNumber})")
-        # Call the default handler to ensure messages are still logged if needed
-        super().javaScriptConsoleMessage(level, message, lineNumber, sourceId)
+        # Don't call super() to avoid type issues with enum values
 
 class JSLogger(QObject):
     """
