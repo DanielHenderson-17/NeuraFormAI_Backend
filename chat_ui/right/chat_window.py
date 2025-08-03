@@ -16,6 +16,40 @@ from chat_ui.services.persona_service import PersonaService, SessionManager
 from chat_ui.voice_recorder import VoiceRecorder
 from chat_ui.components.VoicePlayer import VoicePlayer
 
+# === Text to Phoneme Conversion ===
+def text_to_phonemes(text):
+    """Convert text to phonemes for lip-sync animation"""
+    # Enhanced phoneme mapping for more natural speech
+    phoneme_map = {
+        'a': 'aa', 'e': 'ee', 'i': 'ih', 'o': 'oh', 'u': 'ou',
+        'A': 'aa', 'E': 'ee', 'I': 'ih', 'O': 'oh', 'U': 'ou',
+        'y': 'ih', 'Y': 'ih'
+    }
+    
+    phonemes = []
+    words = text.split()
+    
+    for word in words:
+        word_lower = word.lower()
+        word_phonemes = []
+        
+        # Find all vowels in the word for more detailed lip movement
+        for vowel, phoneme in phoneme_map.items():
+            if vowel in word_lower:
+                word_phonemes.append(phoneme)
+        
+        if word_phonemes:
+            # Use the most prominent vowel (usually the first one)
+            phonemes.append(word_phonemes[0])
+            # Add a brief neutral transition for longer words
+            if len(word_phonemes) > 1:
+                phonemes.append('ih')  # Brief closed mouth
+        else:
+            # If no vowel found, use neutral 'aa'
+            phonemes.append('aa')
+    
+    return phonemes
+
 # === Enhanced Emotion detection function ===
 def detect_emotion(message):
     """Detect emotion from message content with semantic understanding"""
@@ -142,6 +176,69 @@ class VRMExpressionManager:
                 print(f"⚠️ Failed to set VRM emotion: {e}")
         else:
             print(f"🎭 Would set VRM emotion: {emotion} (viewer not connected)")
+    
+    def start_lip_sync(self, text, duration_per_word=0.15):
+        """Start lip-sync animation for the given text"""
+        if self.vrm_viewer:
+            try:
+                # Convert text to phonemes
+                phonemes = text_to_phonemes(text)
+                print(f"🎭 Starting lip-sync with {len(phonemes)} phonemes: {phonemes}")
+                
+                # Cancel any existing lip-sync
+                self.stop_lip_sync()
+                
+                # Start lip-sync animation with faster, smoother timing
+                self.lip_sync_phonemes = phonemes
+                self.current_phoneme_index = 0
+                self.lip_sync_timer = QTimer()
+                self.lip_sync_timer.timeout.connect(self._next_phoneme)
+                self.lip_sync_timer.start(int(duration_per_word * 1000))  # Convert to milliseconds
+                
+                # Start with first phoneme
+                if phonemes:
+                    self._set_current_phoneme()
+                
+            except Exception as e:
+                print(f"⚠️ Failed to start lip-sync: {e}")
+        else:
+            print(f"🎭 Would start lip-sync (viewer not connected)")
+    
+    def stop_lip_sync(self):
+        """Stop lip-sync animation"""
+        if hasattr(self, 'lip_sync_timer') and self.lip_sync_timer:
+            self.lip_sync_timer.stop()
+            self.lip_sync_timer = None
+        
+        if hasattr(self, 'lip_sync_phonemes'):
+            self.lip_sync_phonemes = None
+            self.current_phoneme_index = 0
+        
+        # Clear lip-sync expressions
+        self.clear_lip_sync()
+    
+    def _next_phoneme(self):
+        """Move to next phoneme in lip-sync sequence"""
+        if hasattr(self, 'lip_sync_phonemes') and self.lip_sync_phonemes:
+            self.current_phoneme_index += 1
+            
+            if self.current_phoneme_index >= len(self.lip_sync_phonemes):
+                # Lip-sync complete
+                self.stop_lip_sync()
+                print("🎭 Lip-sync animation complete")
+            else:
+                # Set next phoneme
+                self._set_current_phoneme()
+    
+    def _set_current_phoneme(self):
+        """Set the current phoneme expression"""
+        if (hasattr(self, 'lip_sync_phonemes') and self.lip_sync_phonemes and 
+            hasattr(self, 'current_phoneme_index') and 
+            self.current_phoneme_index < len(self.lip_sync_phonemes)):
+            
+            phoneme = self.lip_sync_phonemes[self.current_phoneme_index]
+            self.set_lip_sync(phoneme)
+            print(f"🎭 Lip-sync phoneme {self.current_phoneme_index + 1}/{len(self.lip_sync_phonemes)}: {phoneme}")
     
     def _return_to_relaxed(self):
         """Return to relaxed expression (normal smile)"""
@@ -345,6 +442,10 @@ class ChatWindow(QWidget):
             print("[ReplyEvent] AI reply displayed:", event.text)
             self.remove_typing_bubble()
             self.add_bubble(event.text, sender="ai")
+            
+            # 🎭 Start lip-sync animation for AI response
+            print(f"🎭 Starting lip-sync for AI response: {event.text[:50]}...")
+            vrm_expression_manager.start_lip_sync(event.text, duration_per_word=0.12)
             
             # 🎭 Analyze AI response for emotional content and trigger appropriate expression
             ai_emotion = detect_emotion(event.text)

@@ -65494,31 +65494,42 @@ void main() {
 	  }
 	};
 
-	// ✅ Global function to set lip sync expression
+	// ✅ Global function to set lip sync expression with smooth transitions
 	window.setLipSync = function (phoneme) {
 	  const phonemeMap = {
-	    a: "a",
-	    ah: "a",
-	    i: "i",
-	    ee: "i",
-	    u: "u",
-	    oo: "u",
-	    e: "e",
-	    eh: "e",
-	    o: "o",
-	    oh: "o",
+	    // Map Python phonemes to actual VRM expressions
+	    aa: "aa",
+	    ah: "aa",
+	    a: "aa",
+	    ih: "ih",
+	    i: "ih",
+	    ee: "ee",
+	    e: "ee",
+	    ou: "ou",
+	    u: "ou",
+	    oo: "ou",
+	    oh: "oh",
+	    o: "oh",
 	  };
 
 	  const expressionName = phonemeMap[phoneme.toLowerCase()];
 	  if (expressionName) {
-	    // Reset all lip sync expressions first
-	    ["a", "i", "u", "e", "o"].forEach((phoneme) => {
-	      const expr = vrm.expressionManager.getExpression(phoneme);
-	      if (expr) expr.weight = 0.0;
-	    });
-
-	    // Set the requested phoneme
-	    return window.setExpression(expressionName, 1.0);
+	    // Smoothly transition to the new phoneme instead of hard reset
+	    const targetPhoneme = vrm.expressionManager.getExpression(expressionName);
+	    if (targetPhoneme) {
+	      // Gradually reduce other phonemes and increase target
+	      ["aa", "ih", "ou", "ee", "oh"].forEach((phonemeName) => {
+	        const expr = vrm.expressionManager.getExpression(phonemeName);
+	        if (expr) {
+	          if (phonemeName === expressionName) {
+	            expr.weight = 1.0; // Set target phoneme to full weight
+	          } else {
+	            expr.weight = Math.max(0.0, expr.weight * 0.3); // Reduce others gradually
+	          }
+	        }
+	      });
+	      return true;
+	    }
 	  } else {
 	    console.warn(`Unknown phoneme: ${phoneme}`);
 	    return false;
@@ -65527,7 +65538,7 @@ void main() {
 
 	// ✅ Global function to clear lip sync
 	window.clearLipSync = function () {
-	  ["a", "i", "u", "e", "o"].forEach((phoneme) => {
+	  ["aa", "ih", "ou", "ee", "oh"].forEach((phoneme) => {
 	    const expr = vrm.expressionManager.getExpression(phoneme);
 	    if (expr) expr.weight = 0.0;
 	  });
