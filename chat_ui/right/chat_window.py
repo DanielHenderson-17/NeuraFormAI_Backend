@@ -16,11 +16,12 @@ from chat_ui.services.persona_service import PersonaService, SessionManager
 from chat_ui.voice_recorder import VoiceRecorder
 from chat_ui.components.VoicePlayer import VoicePlayer
 
-# === Emotion detection function ===
+# === Enhanced Emotion detection function ===
 def detect_emotion(message):
-    """Detect emotion from message content"""
+    """Detect emotion from message content with semantic understanding"""
     message_lower = message.lower()
     
+    # Direct emotion keywords (high confidence)
     emotion_keywords = {
         'happy': ['happy', 'joy', 'excited', 'great', 'wonderful', 'amazing', 'love', '😊', '😄', '😍', 'fantastic', 'awesome'],
         'angry': ['angry', 'mad', 'furious', 'hate', 'terrible', 'awful', '😠', '😡', '🤬', 'upset', 'annoyed'],
@@ -29,9 +30,71 @@ def detect_emotion(message):
         'Surprised': ['wow', 'omg', 'surprised', 'shocked', 'unexpected', '😲', '😱', '🤯', 'incredible', 'unbelievable']
     }
     
+    # Check direct emotion keywords first (highest priority)
     for emotion, keywords in emotion_keywords.items():
         if any(keyword in message_lower for keyword in keywords):
             return emotion
+    
+    # Semantic emotion detection using word families and context
+    def check_semantic_patterns(text):
+        # Job stress and frustration patterns
+        job_stress_patterns = [
+            'quit', 'quitting', 'resign', 'resigning', 'leave', 'leaving',
+            'burnout', 'burning out', 'burn out', 'burned out',
+            'stress', 'stressed', 'stressing', 'overwhelmed', 'overwhelm',
+            'exhausted', 'exhausting', 'tired of', 'sick of', 'fed up',
+            'frustrated', 'frustrating', 'annoyed', 'annoying', 'pissed',
+            'hate', 'hating', 'terrible', 'awful', 'horrible', 'worst',
+            'unfair', 'wrong', 'stupid', 'idiot', 'dumb', 'ridiculous',
+            'fire', 'fired', 'firing', 'layoff', 'laid off', 'terminated'
+        ]
+        
+        # Loss and grief patterns
+        loss_patterns = [
+            'died', 'death', 'dead', 'lost', 'loss', 'miss', 'missing', 'gone',
+            'passed away', 'passed', 'grandpa', 'grandma', 'father', 'mother',
+            'sister', 'brother', 'friend', 'family', 'failed', 'failure',
+            'broke', 'broken', 'lost job', 'fired', 'divorce', 'sick',
+            'illness', 'cancer', 'hospital', 'pain', 'hurt', 'crying'
+        ]
+        
+        # Success and achievement patterns
+        success_patterns = [
+            'got', 'received', 'won', 'success', 'achieved', 'accomplished',
+            'graduated', 'promoted', 'new job', 'new house', 'engaged',
+            'married', 'baby', 'pregnant', 'birthday', 'anniversary',
+            'celebration', 'congratulations', 'amazing', 'incredible'
+        ]
+        
+        # Surprise and shock patterns
+        surprise_patterns = [
+            'unexpected', 'shocking', 'unbelievable', 'incredible',
+            'never thought', 'didn\'t expect', 'out of nowhere', 'suddenly',
+            'just found out', 'discovered', 'wow', 'omg', 'oh my god'
+        ]
+        
+        # Check each pattern family
+        if any(pattern in text for pattern in job_stress_patterns):
+            return 'angry'
+        elif any(pattern in text for pattern in loss_patterns):
+            return 'sad'
+        elif any(pattern in text for pattern in success_patterns):
+            return 'happy'
+        elif any(pattern in text for pattern in surprise_patterns):
+            return 'Surprised'
+        
+        return None
+    
+    # Try semantic detection
+    semantic_result = check_semantic_patterns(message_lower)
+    if semantic_result:
+        return semantic_result
+    
+    # Additional context clues
+    # Check for negative sentiment words that might indicate frustration
+    negative_words = ['bad', 'worst', 'terrible', 'awful', 'horrible', 'hate', 'dislike', 'can\'t stand']
+    if any(word in message_lower for word in negative_words):
+        return 'angry'
     
     return 'neutral'
 
@@ -58,16 +121,36 @@ class VRMExpressionManager:
         self.vrm_viewer = vrm_viewer
         print("🎭 VRM viewer connected to expression manager")
     
-    def set_emotion(self, emotion):
-        """Set emotional expression on VRM model"""
+    def set_emotion(self, emotion, duration=3.0):
+        """Set emotional expression on VRM model and return to relaxed after duration seconds"""
         if self.vrm_viewer:
             try:
                 self.vrm_viewer.set_emotion(emotion)
                 print(f"🎭 Set VRM emotion: {emotion}")
+                
+                # Cancel any existing timer
+                if hasattr(self, 'return_to_relaxed_timer') and self.return_to_relaxed_timer:
+                    self.return_to_relaxed_timer.stop()
+                
+                # Set timer to return to relaxed expression
+                self.return_to_relaxed_timer = QTimer()
+                self.return_to_relaxed_timer.setSingleShot(True)
+                self.return_to_relaxed_timer.timeout.connect(self._return_to_relaxed)
+                self.return_to_relaxed_timer.start(int(duration * 1000))  # Convert to milliseconds
+                
             except Exception as e:
                 print(f"⚠️ Failed to set VRM emotion: {e}")
         else:
             print(f"🎭 Would set VRM emotion: {emotion} (viewer not connected)")
+    
+    def _return_to_relaxed(self):
+        """Return to relaxed expression (normal smile)"""
+        if self.vrm_viewer:
+            try:
+                print("🎭 Returning to relaxed expression")
+                self.vrm_viewer.set_emotion("relaxed")
+            except Exception as e:
+                print(f"⚠️ Failed to return to relaxed: {e}")
     
     def set_lip_sync(self, phoneme):
         """Set lip sync expression"""
@@ -133,6 +216,7 @@ class ChatWindow(QWidget):
         self.setWindowTitle("NeuraPal - AI Chat")
         self.recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
+        self.last_user_emotion = 'neutral'  # Store the last user emotion
 
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -262,11 +346,16 @@ class ChatWindow(QWidget):
             self.remove_typing_bubble()
             self.add_bubble(event.text, sender="ai")
             
-            # 🎭 Detect emotion from AI response and set VRM expression
+            # 🎭 Analyze AI response for emotional content and trigger appropriate expression
             ai_emotion = detect_emotion(event.text)
             if ai_emotion != 'neutral':
-                print(f"🎭 Detected AI emotion: {ai_emotion}")
+                print(f"🎭 AI response shows emotion: {ai_emotion}")
                 vrm_expression_manager.set_emotion(ai_emotion)
+            elif self.last_user_emotion != 'neutral':
+                # If AI doesn't show emotion but user had emotion, AI should show empathy
+                print(f"🎭 AI showing empathy for user emotion: {self.last_user_emotion}")
+                vrm_expression_manager.set_emotion(self.last_user_emotion)
+                self.last_user_emotion = 'neutral'  # Reset after triggering
             
             return True
 
@@ -278,11 +367,11 @@ class ChatWindow(QWidget):
             print(f"🟢 [ChatWindow] User input event: {event.text}")
             self.add_bubble(event.text, sender="user")
             
-            # 🎭 Detect emotion from user message and set VRM expression
-            user_emotion = detect_emotion(event.text)
-            if user_emotion != 'neutral':
-                print(f"🎭 Detected user emotion: {user_emotion}")
-                vrm_expression_manager.set_emotion(user_emotion)
+            # 🎭 Detect and store emotion from user message (will trigger on AI response)
+            self.last_user_emotion = detect_emotion(event.text)
+            print(f"🎭 Emotion detection result: '{event.text}' → {self.last_user_emotion}")
+            if self.last_user_emotion != 'neutral':
+                print(f"🎭 Detected user emotion: {self.last_user_emotion} (will trigger on AI response)")
             
             threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
             return True
