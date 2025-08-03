@@ -177,8 +177,14 @@ class VRMExpressionManager:
         else:
             print(f"🎭 Would set VRM emotion: {emotion} (viewer not connected)")
     
-    def start_lip_sync(self, text, duration_per_word=0.15):
-        """Start lip-sync animation for the given text"""
+    def start_lip_sync(self, text, duration_per_word=0.15, total_duration=None):
+        """Start lip-sync animation for the given text
+        
+        Args:
+            text: The text to convert to phonemes
+            duration_per_word: Duration per phoneme (used when total_duration is None)
+            total_duration: Total audio duration in seconds (for voice sync)
+        """
         if self.vrm_viewer:
             try:
                 # Convert text to phonemes
@@ -188,12 +194,25 @@ class VRMExpressionManager:
                 # Cancel any existing lip-sync
                 self.stop_lip_sync()
                 
-                # Start lip-sync animation with faster, smoother timing
+                # Calculate timing based on mode
+                if total_duration and len(phonemes) > 0:
+                    # Voice mode: create more phonemes for faster lip movement while matching audio duration
+                    # Generate more phonemes by adding transitions and breaking words further
+                    enhanced_phonemes = self._enhance_phonemes_for_voice(phonemes, text)
+                    phoneme_duration = total_duration / len(enhanced_phonemes)
+                    print(f"🎭 Voice mode: {total_duration:.2f}s total, {len(enhanced_phonemes)} phonemes, {phoneme_duration:.3f}s per phoneme")
+                    phonemes = enhanced_phonemes
+                else:
+                    # Text mode: use fixed timing
+                    phoneme_duration = duration_per_word
+                    print(f"🎭 Text mode: {phoneme_duration:.3f}s per phoneme")
+                
+                # Start lip-sync animation
                 self.lip_sync_phonemes = phonemes
                 self.current_phoneme_index = 0
                 self.lip_sync_timer = QTimer()
                 self.lip_sync_timer.timeout.connect(self._next_phoneme)
-                self.lip_sync_timer.start(int(duration_per_word * 1000))  # Convert to milliseconds
+                self.lip_sync_timer.start(int(phoneme_duration * 1000))  # Convert to milliseconds
                 
                 # Start with first phoneme
                 if phonemes:
@@ -203,6 +222,44 @@ class VRMExpressionManager:
                 print(f"⚠️ Failed to start lip-sync: {e}")
         else:
             print(f"🎭 Would start lip-sync (viewer not connected)")
+    
+    def _enhance_phonemes_for_voice(self, base_phonemes, text):
+        """Enhance phonemes for voice mode to create faster, more natural lip movement"""
+        enhanced = []
+        words = text.split()
+        
+        for i, word in enumerate(words):
+            word_lower = word.lower()
+            
+            # Slightly faster phoneme enhancement for voice mode
+            if len(word) <= 3:
+                # Very short words: just the base phoneme
+                enhanced.append(base_phonemes[i] if i < len(base_phonemes) else 'aa')
+            elif len(word) <= 6:
+                # Short words: base phoneme + one transition
+                base_phoneme = base_phonemes[i] if i < len(base_phonemes) else 'aa'
+                enhanced.append(base_phoneme)
+                enhanced.append('ih')  # Brief transition
+            elif len(word) <= 9:
+                # Medium words: base phoneme + two transitions
+                base_phoneme = base_phonemes[i] if i < len(base_phonemes) else 'aa'
+                enhanced.append(base_phoneme)
+                enhanced.append('ih')  # Transition
+                enhanced.append(base_phoneme)  # Return to base
+            else:
+                # Long words: base phoneme + three transitions
+                base_phoneme = base_phonemes[i] if i < len(base_phonemes) else 'aa'
+                enhanced.append(base_phoneme)
+                enhanced.append('ih')  # Transition
+                enhanced.append(base_phoneme)  # Return
+                enhanced.append('ih')  # Another transition
+                enhanced.append(base_phoneme)  # Final position
+            
+            # Add brief pause between words (except for the last word)
+            if i < len(words) - 1:
+                enhanced.append('ih')  # Brief closed mouth between words
+        
+        return enhanced
     
     def stop_lip_sync(self):
         """Stop lip-sync animation"""
@@ -280,9 +337,10 @@ vrm_expression_manager = VRMExpressionManager()
 class ReplyEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
-    def __init__(self, text):
+    def __init__(self, text, audio_duration=None):
         super().__init__(ReplyEvent.EVENT_TYPE)
         self.text = text
+        self.audio_duration = audio_duration
 
 class UserInputEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
@@ -424,8 +482,9 @@ class ChatWindow(QWidget):
         print(f"🟢 [ChatWindow] Reply received: {reply_text}")
     
         if voice_enabled:
-            def on_start():
-                QCoreApplication.postEvent(self, ReplyEvent(reply_text))
+            def on_start(audio_duration=None):
+                # Create a custom event that includes audio duration for voice sync
+                QCoreApplication.postEvent(self, ReplyEvent(reply_text, audio_duration))
     
             threading.Thread(
                 target=self.voice_player.play_reply_from_backend,
@@ -445,7 +504,14 @@ class ChatWindow(QWidget):
             
             # 🎭 Start lip-sync animation for AI response
             print(f"🎭 Starting lip-sync for AI response: {event.text[:50]}...")
-            vrm_expression_manager.start_lip_sync(event.text, duration_per_word=0.12)
+            
+            # Check if we have audio duration (voice mode) or use text timing
+            if event.audio_duration:
+                print(f"🎭 Voice mode detected: {event.audio_duration:.2f}s audio duration")
+                vrm_expression_manager.start_lip_sync(event.text, total_duration=event.audio_duration)
+            else:
+                print(f"🎭 Text mode: using fixed timing")
+                vrm_expression_manager.start_lip_sync(event.text, duration_per_word=0.12)
             
             # 🎭 Analyze AI response for emotional content and trigger appropriate expression
             ai_emotion = detect_emotion(event.text)

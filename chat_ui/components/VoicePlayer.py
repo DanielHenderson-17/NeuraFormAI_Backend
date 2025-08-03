@@ -27,7 +27,7 @@ class VoicePlayer:
         """Request ElevenLabs stream from backend and play it."""
         if not voice_enabled:
             print("🔇 [VoicePlayer] Voice disabled — skipping playback")
-            return
+            return None
 
         try:
             print("🎤 [VoicePlayer] Sending TTS for reply...")
@@ -51,7 +51,8 @@ class VoicePlayer:
                 print("📦 [VoicePlayer] Buffer size:", buffer.getbuffer().nbytes)
 
                 audio = AudioSegment.from_file(buffer, format="mp3")
-                print("🎧 [VoicePlayer] Loaded MP3 | Duration:", len(audio), "ms | Channels:", audio.channels)
+                audio_duration_seconds = len(audio) / 1000.0  # Convert ms to seconds
+                print("🎧 [VoicePlayer] Loaded MP3 | Duration:", len(audio), "ms (", audio_duration_seconds, "s) | Channels:", audio.channels)
 
                 audio = audio - 10  # optional volume tweak
 
@@ -62,12 +63,15 @@ class VoicePlayer:
                     samples = samples.reshape((-1, 2))
 
                 if on_start:
-                    on_start()
+                    on_start(audio_duration_seconds)  # Pass duration to callback
 
                 print("🔊 [VoicePlayer] Playing audio now...")
                 sd.play(samples, samplerate=audio.frame_rate)
                 sd.wait()
                 print("✅ [VoicePlayer] Playback finished")
+                
+                return audio_duration_seconds
 
         except Exception as e:
             print("❌ Voice playback error:", str(e))
+            return None
