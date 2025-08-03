@@ -110,6 +110,73 @@ class VRMWebView(QWidget):
         js_trigger = "window.triggerBlink();"
         self.webview.page().runJavaScript(js_trigger)
 
+    def set_expression(self, expression_name: str, weight: float = 1.0):
+        """
+        Set a specific expression on the VRM model.
+        
+        Args:
+            expression_name: Name of the expression (e.g., 'joy', 'angry', 'fun', etc.)
+            weight: Expression weight from 0.0 to 1.0
+        """
+        print(f"🟢 [Python] Setting expression '{expression_name}' to weight {weight}")
+        js_set = f"window.setExpression('{expression_name}', {weight});"
+        self.webview.page().runJavaScript(js_set)
+
+    def set_emotion(self, emotion: str):
+        """
+        Set an emotional expression on the VRM model.
+        
+        Args:
+            emotion: Emotion name ('joy', 'angry', 'fun', 'sorrow', 'surprised')
+        """
+        print(f"🟢 [Python] Setting emotion: {emotion}")
+        js_set = f"window.setEmotion('{emotion}');"
+        self.webview.page().runJavaScript(js_set)
+
+    def set_lip_sync(self, phoneme: str):
+        """
+        Set lip sync expression for speech.
+        
+        Args:
+            phoneme: Phoneme name ('a', 'i', 'u', 'e', 'o')
+        """
+        print(f"🟢 [Python] Setting lip sync: {phoneme}")
+        js_set = f"window.setLipSync('{phoneme}');"
+        self.webview.page().runJavaScript(js_set)
+
+    def clear_lip_sync(self):
+        """
+        Clear all lip sync expressions.
+        """
+        print("🟢 [Python] Clearing lip sync expressions")
+        js_clear = "window.clearLipSync();"
+        self.webview.page().runJavaScript(js_clear)
+
+    def reset_expressions(self):
+        """
+        Reset all expressions to neutral.
+        """
+        print("🟢 [Python] Resetting all expressions to neutral")
+        js_reset = "window.resetExpressions();"
+        self.webview.page().runJavaScript(js_reset)
+
+    def get_available_expressions(self):
+        """
+        Get list of available expressions from the VRM model.
+        """
+        print("🟢 [Python] Getting available expressions")
+        js_get = "window.getAvailableExpressions();"
+        self.webview.page().runJavaScript(js_get, self._on_expressions_loaded)
+
+    def _on_expressions_loaded(self, expressions):
+        """
+        Callback when expressions are loaded.
+        """
+        if expressions:
+            print(f"🟢 [Python] Available expressions: {expressions}")
+        else:
+            print("🟡 [Python] No expressions found or VRM not loaded")
+
     def _check_ready(self):
         js_check = "window.vrmViewerReady === true;"
         self.webview.page().runJavaScript(js_check, self._on_ready_check)

@@ -1,63 +1,135 @@
+import sys
+import os
+import threading
+import requests
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QScrollArea, QFrame, QLabel
 )
-from PyQt6.QtCore import Qt, QEvent, QCoreApplication, QTimer
+from PyQt6.QtCore import QEvent, Qt, QCoreApplication, QTimer
+from PyQt6.QtGui import QFont
+
+# Add the parent directory to the path to import from chat_ui
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from chat_ui.right.chat_bubble import ChatBubble
 from chat_ui.services.persona_service import PersonaService, SessionManager
 from chat_ui.voice_recorder import VoiceRecorder
 from chat_ui.components.VoicePlayer import VoicePlayer
 
-import threading
-import requests
+# === Emotion detection function ===
+def detect_emotion(message):
+    """Detect emotion from message content"""
+    message_lower = message.lower()
+    
+    emotion_keywords = {
+        'happy': ['happy', 'joy', 'excited', 'great', 'wonderful', 'amazing', 'love', '😊', '😄', '😍', 'fantastic', 'awesome'],
+        'angry': ['angry', 'mad', 'furious', 'hate', 'terrible', 'awful', '😠', '😡', '🤬', 'upset', 'annoyed'],
+        'relaxed': ['fun', 'funny', 'lol', 'haha', 'amusing', '😆', '😂', '🤣', 'hilarious', 'joke'],
+        'sad': ['sad', 'sorry', 'sorrow', 'depressed', 'unfortunate', '😢', '😭', '😔', 'unfortunate', 'disappointed'],
+        'Surprised': ['wow', 'omg', 'surprised', 'shocked', 'unexpected', '😲', '😱', '🤯', 'incredible', 'unbelievable']
+    }
+    
+    for emotion, keywords in emotion_keywords.items():
+        if any(keyword in message_lower for keyword in keywords):
+            return emotion
+    
+    return 'neutral'
 
+# === VRM Expression Manager ===
+class VRMExpressionManager:
+    """Manages VRM expressions for the chat system"""
+    
+    def __init__(self):
+        self.vrm_viewer = None
+        self._find_vrm_viewer()
+    
+    def _find_vrm_viewer(self):
+        """Find the VRM viewer in the application"""
+        try:
+            # Try to import and find the VRM viewer
+            from center.vrm_webview import VRMWebView
+            # This will be set when the main application creates the VRM viewer
+            print("🎭 VRM Expression Manager initialized")
+        except ImportError:
+            print("⚠️ VRM viewer not available")
+    
+    def set_vrm_viewer(self, vrm_viewer):
+        """Set the VRM viewer instance"""
+        self.vrm_viewer = vrm_viewer
+        print("🎭 VRM viewer connected to expression manager")
+    
+    def set_emotion(self, emotion):
+        """Set emotional expression on VRM model"""
+        if self.vrm_viewer:
+            try:
+                self.vrm_viewer.set_emotion(emotion)
+                print(f"🎭 Set VRM emotion: {emotion}")
+            except Exception as e:
+                print(f"⚠️ Failed to set VRM emotion: {e}")
+        else:
+            print(f"🎭 Would set VRM emotion: {emotion} (viewer not connected)")
+    
+    def set_lip_sync(self, phoneme):
+        """Set lip sync expression"""
+        if self.vrm_viewer:
+            try:
+                self.vrm_viewer.set_lip_sync(phoneme)
+            except Exception as e:
+                print(f"⚠️ Failed to set lip sync: {e}")
+    
+    def clear_lip_sync(self):
+        """Clear lip sync expressions"""
+        if self.vrm_viewer:
+            try:
+                self.vrm_viewer.clear_lip_sync()
+            except Exception as e:
+                print(f"⚠️ Failed to clear lip sync: {e}")
+    
+    def reset_expressions(self):
+        """Reset to neutral expression"""
+        if self.vrm_viewer:
+            try:
+                self.vrm_viewer.reset_expressions()
+            except Exception as e:
+                print(f"⚠️ Failed to reset expressions: {e}")
 
+# Global VRM expression manager
+vrm_expression_manager = VRMExpressionManager()
+
+# === Event classes ===
 class ReplyEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
-    # === Event to handle AI replies ===
     def __init__(self, text):
         super().__init__(ReplyEvent.EVENT_TYPE)
         self.text = text
 
-
 class UserInputEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
-    # === Event to handle user input ===
     def __init__(self, text):
         super().__init__(UserInputEvent.EVENT_TYPE)
         self.text = text
 
-
 class AutoGreetingEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
-    # === Event to trigger hidden auto-greeting message ===
     def __init__(self, text):
         super().__init__(AutoGreetingEvent.EVENT_TYPE)
         self.text = text
 
-
 class TypingEvent(QEvent):
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
-    # === Event to indicate AI is typing ===
     def __init__(self):
         super().__init__(TypingEvent.EVENT_TYPE)
 
-
 class ChatWindow(QWidget):
     # === ChatWindow for displaying chat messages and handling input ===
+    
     def __init__(self):
         super().__init__()
-
-        self.setMinimumWidth(100)
-
-        active_persona = PersonaService.get_active_persona()
-        print(f"🟢 [ChatWindow] Active persona on startup: {active_persona}")
-        self.persona_name = active_persona.get("name", "Assistant")
-        print(f"🟢 [ChatWindow] Persona name set to: {self.persona_name}")
-
+        self.persona_name = "Assistant"
         self.setWindowTitle("NeuraPal - AI Chat")
         self.recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
@@ -189,6 +261,13 @@ class ChatWindow(QWidget):
             print("[ReplyEvent] AI reply displayed:", event.text)
             self.remove_typing_bubble()
             self.add_bubble(event.text, sender="ai")
+            
+            # 🎭 Detect emotion from AI response and set VRM expression
+            ai_emotion = detect_emotion(event.text)
+            if ai_emotion != 'neutral':
+                print(f"🎭 Detected AI emotion: {ai_emotion}")
+                vrm_expression_manager.set_emotion(ai_emotion)
+            
             return True
 
         elif event.type() == TypingEvent.EVENT_TYPE:
@@ -198,6 +277,13 @@ class ChatWindow(QWidget):
         elif event.type() == UserInputEvent.EVENT_TYPE:
             print(f"🟢 [ChatWindow] User input event: {event.text}")
             self.add_bubble(event.text, sender="user")
+            
+            # 🎭 Detect emotion from user message and set VRM expression
+            user_emotion = detect_emotion(event.text)
+            if user_emotion != 'neutral':
+                print(f"🎭 Detected user emotion: {user_emotion}")
+                vrm_expression_manager.set_emotion(user_emotion)
+            
             threading.Thread(target=self.fetch_reply, args=(event.text,), daemon=True).start()
             return True
 

@@ -163,6 +163,130 @@ window.triggerBlink = function () {
   }
 };
 
+// ✅ Global function to set any expression
+window.setExpression = function (expressionName, weight = 1.0) {
+  if (!vrm || !vrm.expressionManager) {
+    console.warn("VRM or expression manager not available");
+    return false;
+  }
+
+  const expression = vrm.expressionManager.getExpression(expressionName);
+  if (expression) {
+    expression.weight = Math.max(0.0, Math.min(1.0, weight));
+    console.log(
+      `Set expression "${expressionName}" to weight ${expression.weight}`
+    );
+    return true;
+  } else {
+    console.warn(`Expression "${expressionName}" not found`);
+    return false;
+  }
+};
+
+// ✅ Global function to reset all expressions to neutral
+window.resetExpressions = function () {
+  if (!vrm || !vrm.expressionManager) {
+    console.warn("VRM or expression manager not available");
+    return false;
+  }
+
+  // Reset all expressions to 0
+  vrm.expressionManager.expressions.forEach((expression) => {
+    expression.weight = 0.0;
+  });
+
+  // Set neutral to 1.0
+  const neutralExpression = vrm.expressionManager.getExpression("neutral");
+  if (neutralExpression) {
+    neutralExpression.weight = 1.0;
+  }
+
+  console.log("Reset all expressions to neutral");
+  return true;
+};
+
+// ✅ Global function to get list of available expressions
+window.getAvailableExpressions = function () {
+  if (!vrm || !vrm.expressionManager) {
+    return [];
+  }
+
+  return vrm.expressionManager.expressions.map((exp) => exp.expressionName);
+};
+
+// ✅ Global function to set emotional expression
+window.setEmotion = function (emotion) {
+  const emotionMap = {
+    happy: "happy",
+    joy: "happy",
+    angry: "angry",
+    mad: "angry",
+    relaxed: "relaxed",
+    fun: "relaxed",
+    amused: "relaxed",
+    sad: "sad",
+    sorrow: "sad",
+    Surprised: "Surprised",
+    surprised: "Surprised",
+    shocked: "Surprised",
+  };
+
+  const expressionName = emotionMap[emotion.toLowerCase()];
+  if (expressionName) {
+    // Reset all emotional expressions first
+    ["happy", "angry", "relaxed", "sad", "Surprised"].forEach((emotion) => {
+      const expr = vrm.expressionManager.getExpression(emotion);
+      if (expr) expr.weight = 0.0;
+    });
+
+    // Set the requested emotion
+    return window.setExpression(expressionName, 1.0);
+  } else {
+    console.warn(`Unknown emotion: ${emotion}`);
+    return false;
+  }
+};
+
+// ✅ Global function to set lip sync expression
+window.setLipSync = function (phoneme) {
+  const phonemeMap = {
+    a: "a",
+    ah: "a",
+    i: "i",
+    ee: "i",
+    u: "u",
+    oo: "u",
+    e: "e",
+    eh: "e",
+    o: "o",
+    oh: "o",
+  };
+
+  const expressionName = phonemeMap[phoneme.toLowerCase()];
+  if (expressionName) {
+    // Reset all lip sync expressions first
+    ["a", "i", "u", "e", "o"].forEach((phoneme) => {
+      const expr = vrm.expressionManager.getExpression(phoneme);
+      if (expr) expr.weight = 0.0;
+    });
+
+    // Set the requested phoneme
+    return window.setExpression(expressionName, 1.0);
+  } else {
+    console.warn(`Unknown phoneme: ${phoneme}`);
+    return false;
+  }
+};
+
+// ✅ Global function to clear lip sync
+window.clearLipSync = function () {
+  ["a", "i", "u", "e", "o"].forEach((phoneme) => {
+    const expr = vrm.expressionManager.getExpression(phoneme);
+    if (expr) expr.weight = 0.0;
+  });
+  console.log("Cleared lip sync expressions");
+};
+
 init();
 // ✅ Global flag for Python
 window.vrmViewerReady = true;

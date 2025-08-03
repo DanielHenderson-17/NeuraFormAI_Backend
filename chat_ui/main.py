@@ -63,6 +63,11 @@ def main():
     PersonaService.register_chat_window(right_column.chat_window)
     PersonaService.register_vrm_container(center_column.vrm_container)
 
+    # 🎭 Connect VRM viewer to expression manager
+    from chat_ui.right.chat_window import vrm_expression_manager
+    vrm_expression_manager.set_vrm_viewer(center_column.vrm_container.vrm_renderer)
+    print("🎭 VRM Expression System connected!")
+
     active_persona = PersonaService.get_active_persona()
     if active_persona:
         vrm_model = active_persona.get("vrm_model", "")
