@@ -42,3 +42,5 @@ app/config/characters/
 _freeze/
 
 node_modules/
+
+vroid_analysis/
