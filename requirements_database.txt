@@ -1,0 +1,33 @@
+# Database and Authentication Dependencies for NeuraFormAI
+
+# Database
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# OAuth and Authentication
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+PyJWT==2.8.0
+cryptography==41.0.7
+
+# HTTP client for OAuth
+aiohttp==3.9.1
+
+# Data validation
+pydantic==2.5.0
+pydantic[email]==2.5.0
+
+# Environment management
+python-dotenv==1.0.0
+
+# Optional: Supabase client (if using Supabase)
+supabase==2.3.0
+
+# Optional: Redis for session storage (alternative to database sessions)
+redis==5.0.1
+aioredis==2.0.1
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0 
