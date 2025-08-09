@@ -1,0 +1,16 @@
+{
+  "summary": {
+    "total_files_downloaded": 0,
+    "total_functions_found": 0,
+    "total_api_endpoints": 0,
+    "total_vrma_related_code": 0,
+    "total_animation_functions": 0,
+    "total_coordinate_transformations": 0
+  },
+  "function_signatures": [],
+  "api_endpoints": [],
+  "vrma_related_code": [],
+  "animation_functions": [],
+  "coordinate_transformations": [],
+  "downloaded_files": []
+}

@@ -44,3 +44,5 @@ _freeze/
 node_modules/
 
 vroid_analysis/chat_ui/config.json
+config.json
+chat_ui/config.json

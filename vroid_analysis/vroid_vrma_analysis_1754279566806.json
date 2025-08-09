@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-08-04T03:52:46.806Z",
+  "summary": {
+    "vrma_loads": 0,
+    "vrma_functions": 0,
+    "animation_clips": 0,
+    "bone_mappings": 0,
+    "console_logs": 0,
+    "network_requests": 3
+  },
+  "data": {
+    "vrmaLoads": [],
+    "vrmaData": [],
+    "animationClips": [],
+    "boneMappings": [],
+    "networkRequests": [
+      {
+        "timestamp": 1754279471009,
+        "method": "POST",
+        "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-JMS7WWJ8HD&gtm=45je57v0h2v871743858za200zd871743858&_p=1754279429013&gcd=13l3l3l3l1l1&npa=0&dma=0&tag_exp=101509157~103116026~103200004~103233427~104684208~104684211~104948813~105087538~105087540~105103161~105103163~105113532&ni=1&cid=1114270637.1753480450&ul=en-us&sr=5120x1440&uaa=x86&uab=64&uafvl=Not)A%253BBrand%3B8.0.0.0%7CChromium%3B138.0.7204.184%7CGoogle%2520Chrome%3B138.0.7204.184&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&dp=%2Fen%2Fcharacters%2F2326102758178929484%2Fmodels%2F526254433637029980%2Fphotobooth&dt=VRoid%20Hub&uid=97787442&sid=1754278210&sct=12&seg=1&dl=https%3A%2F%2Fhub.vroid.com%2Fen%2Fcharacters%2F2326102758178929484%2Fmodels%2F526254433637029980%2Fphotobooth&dr=https%3A%2F%2Faccounts.pixiv.net%2F&_s=4&tfd=43007",
+        "headers": {},
+        "body": "en=LCP&_ee=1&ep.cd_user_id=97787442&ep.event_category=WebVitals&ep.event_label=v4-1754279429360-9142035276180&epn.value=1100&_et=6054\r\nen=FID&_ee=1&ep.cd_user_id=97787442&ep.event_category=WebVitals&ep.event_label=v4-1754279429360-6544913873265&epn.value=2&_et=24",
+        "type": "fetch",
+        "response_status": 0,
+        "response_headers": {},
+        "response_data": "",
+        "response_size": 0
+      },
+      {
+        "timestamp": 1754279476010,
+        "method": "POST",
+        "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-JMS7WWJ8HD&gtm=45je57v0h2v871743858za200zd871743858&_p=1754279429013&gcd=13l3l3l3l1l1&npa=0&dma=0&tag_exp=101509157~103116026~103200004~103233427~104684208~104684211~104948813~105087538~105087540~105103161~105103163~105113532&cid=1114270637.1753480450&ul=en-us&sr=5120x1440&uaa=x86&uab=64&uafvl=Not)A%253BBrand%3B8.0.0.0%7CChromium%3B138.0.7204.184%7CGoogle%2520Chrome%3B138.0.7204.184&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=5&dp=%2Fen%2Fcharacters%2F2326102758178929484%2Fmodels%2F526254433637029980%2Fphotobooth&dt=VRoid%20Hub&uid=97787442&sid=1754278210&sct=12&seg=1&dl=https%3A%2F%2Fhub.vroid.com%2Fen%2Fcharacters%2F2326102758178929484%2Fmodels%2F526254433637029980%2Fphotobooth&dr=https%3A%2F%2Faccounts.pixiv.net%2F&en=LoadVRMA&_ee=1&ep.cd_user_id=97787442&ep.event_category=ModelPhotobooth&_et=105&tfd=48007",
+        "headers": {},
+        "type": "fetch",
+        "response_status": 0,
+        "response_headers": {},
+        "response_data": "",
+        "response_size": 0
+      },
+      {
+        "timestamp": 1754279510094,
+        "method": "POST",
+        "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-JMS7WWJ8HD&gtm=45je57v0h2v871743858za200zd871743858&_p=1754279429013&gcd=13l3l3l3l1l1&npa=0&dma=0&tag_exp=101509157~103116026~103200004~103233427~104684208~104684211~104948813~105087538~105087540~105103161~105103163~105113532&cid=1114270637.1753480450&ul=en-us&sr=5120x1440&uaa=x86&uab=64&uafvl=Not)A%253BBrand%3B8.0.0.0%7CChromium%3B138.0.7204.184%7CGoogle%2520Chrome%3B138.0.7204.184&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=6&dp=%2Fen%2Fcharacters%2F2326102758178929484%2Fmodels%2F526254433637029980%2Fphotobooth&dt=VRoid%20Hub&uid=97787442&sid=1754278210&sct=12&seg=1&dl=https%3A%2F%2Fhub.vroid.com%2Fen%2Fcharacters%2F2326102758178929484%2Fmodels%2F526254433637029980%2Fphotobooth&dr=https%3A%2F%2Faccounts.pixiv.net%2F&en=LoadVRMA&_ee=1&ep.cd_user_id=97787442&ep.event_category=ModelPhotobooth&_et=4652&tfd=82091",
+        "headers": {},
+        "type": "fetch",
+        "response_status": 0,
+        "response_headers": {},
+        "response_data": "",
+        "response_size": 0
+      }
+    ],
+    "consoleLogs": [],
+    "vrmaFunctions": [],
+    "timingData": {},
+    "rawData": []
+  }
+}
