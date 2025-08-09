@@ -46,3 +46,5 @@ node_modules/
 vroid_analysis/chat_ui/config.json
 config.json
 chat_ui/config.json
+/chat_ui/*.json
+/chat_ui/config.json
