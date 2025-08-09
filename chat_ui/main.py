@@ -16,7 +16,7 @@ QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 def main():
     app = QApplication(sys.argv)
 
-    from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QSplashScreen
+    from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QSplashScreen, QDialog
     from PyQt6.QtCore import QTimer
     from PyQt6.QtGui import QIcon, QPixmap
     from PyQt6.QtWebEngineCore import QWebEngineProfile
@@ -31,67 +31,87 @@ def main():
 
     app.setWindowIcon(QIcon("chat_ui/assets/neuraform_icon.png"))
 
-    # === Splash screen
+    # === Splash first ===
     splash_pix = QPixmap("chat_ui/assets/neurapal_ai_splash.png")
     splash = QSplashScreen(splash_pix, Qt.WindowType.WindowStaysOnTopHint)
     splash.setMask(splash_pix.mask())
     splash.show()
     app.processEvents()
 
-    # === Main window
-    window = QMainWindow()
-    window.setWindowTitle("NeuraPal - AI Chat")
-    window.resize(1400, 700)
+    # === Auth gate will run after splash delay ===
+    from chat_ui.services.auth_client import auth_client
+    from chat_ui.components.LoginDialog import LoginDialog
 
-    main_widget = QWidget()
-    layout = QGridLayout(main_widget)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(0)
+    def proceed_to_login_and_main():
+        splash.close()
+        # Show login if session invalid
+        if not auth_client.validate_session():
+            login = LoginDialog()
+            if login.exec() != QDialog.DialogCode.Accepted:
+                # User cancelled
+                from PyQt6.QtWidgets import QApplication
+                QApplication.instance().quit()
+                return
 
-    left_column = LeftColumnContainer()
-    layout.addWidget(left_column, 0, 0, 2, 1)
+        # === Main window
+        window = QMainWindow()
+        window.setWindowTitle("NeuraPal - AI Chat")
+        window.resize(1400, 700)
 
-    center_column = CenterColumnContainer()
-    layout.addWidget(center_column, 0, 1, 2, 1)
+        main_widget = QWidget()
+        layout = QGridLayout(main_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-    right_column = RightColumnContainer()
-    layout.addWidget(right_column, 0, 2, 2, 1)
+        left_column = LeftColumnContainer()
+        layout.addWidget(left_column, 0, 0, 2, 1)
 
-    center_column.chat_input.chat_window = right_column.chat_window
-    right_column.chat_window.input_box = center_column.chat_input
+        center_column = CenterColumnContainer()
+        layout.addWidget(center_column, 0, 1, 2, 1)
 
-    PersonaService.register_chat_window(right_column.chat_window)
-    PersonaService.register_vrm_container(center_column.vrm_container)
+        right_column = RightColumnContainer()
+        layout.addWidget(right_column, 0, 2, 2, 1)
 
-    # 🎭 Connect VRM viewer to expression manager
-    from chat_ui.right.chat_window import vrm_expression_manager
-    vrm_expression_manager.set_vrm_viewer(center_column.vrm_container.vrm_renderer)
-    print("🎭 VRM Expression System connected!")
+        center_column.chat_input.chat_window = right_column.chat_window
+        right_column.chat_window.input_box = center_column.chat_input
 
-    active_persona = PersonaService.get_active_persona()
-    if active_persona:
-        vrm_model = active_persona.get("vrm_model", "")
-        locked = active_persona.get("locked", False)
+        PersonaService.register_chat_window(right_column.chat_window)
+        PersonaService.register_vrm_container(center_column.vrm_container)
 
-        if not locked and vrm_model:
-            vrm_path = os.path.join(PersonaService.VRM_DIR, vrm_model)
-            if os.path.exists(vrm_path):
-                center_column.vrm_container.load_vrm(vrm_path)
-                print(f"✅ Auto-loaded active persona VRM: {vrm_model}")
+        # 🎭 Connect VRM viewer to expression manager
+        from chat_ui.right.chat_window import vrm_expression_manager
+        vrm_expression_manager.set_vrm_viewer(center_column.vrm_container.vrm_renderer)
+        print("🎭 VRM Expression System connected!")
+
+        active_persona = PersonaService.get_active_persona()
+        if active_persona:
+            vrm_model = active_persona.get("vrm_model", "")
+            locked = active_persona.get("locked", False)
+
+            if not locked and vrm_model:
+                vrm_path = os.path.join(PersonaService.VRM_DIR, vrm_model)
+                if os.path.exists(vrm_path):
+                    center_column.vrm_container.load_vrm(vrm_path)
+                    print(f"✅ Auto-loaded active persona VRM: {vrm_model}")
+                else:
+                    print(f"⚠️ VRM file missing on startup: {vrm_path}")
             else:
-                print(f"⚠️ VRM file missing on startup: {vrm_path}")
-        else:
-            print("🔒 Active persona is locked or has no VRM.")
+                print("🔒 Active persona is locked or has no VRM.")
 
-    layout.setColumnStretch(0, 1)
-    layout.setColumnStretch(1, 2)
-    layout.setColumnStretch(2, 1)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 2)
+        layout.setColumnStretch(2, 1)
 
-    window.setCentralWidget(main_widget)
-    window.move(app.primaryScreen().availableGeometry().center() - window.rect().center())
+        window.setCentralWidget(main_widget)
+        window.move(app.primaryScreen().availableGeometry().center() - window.rect().center())
 
-    QTimer.singleShot(1500, splash.close)
-    QTimer.singleShot(1500, window.show)
+        window.show()
+        # Keep a reference to avoid GC
+        app._main_window = window  # type: ignore[attr-defined]
+
+    # Keep splash up for ~5 seconds, then proceed to login/main
+    QTimer.singleShot(5000, proceed_to_login_and_main)
+
 
     sys.exit(app.exec())
 

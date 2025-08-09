@@ -151,6 +151,7 @@ CREATE INDEX idx_messages_conversation_id ON public.messages(conversation_id);
 CREATE INDEX idx_messages_created_at ON public.messages(created_at);
 CREATE INDEX idx_user_sessions_user_id ON public.user_sessions(user_id);
 CREATE INDEX idx_user_sessions_token ON public.user_sessions(session_token);
+CREATE INDEX idx_user_sessions_expires_at ON public.user_sessions(expires_at);
 CREATE INDEX idx_voice_data_user_id ON public.voice_data(user_id);
 CREATE INDEX idx_voice_data_message_id ON public.voice_data(message_id);
 

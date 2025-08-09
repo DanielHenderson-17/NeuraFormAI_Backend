@@ -1,22 +1,15 @@
-import uuid
 import requests
 import os
+from chat_ui.services.auth_client import auth_client
 
 class SessionManager:
-    """
-    Handles temporary user ID generation for persona requests.
-    This simulates a real user system until authentication is added.
-    """
-    _user_id = None
-
+    """Bridges to backend session and user identity."""
     @classmethod
     def get_user_id(cls):
-        if cls._user_id is None:
-            cls._user_id = str(uuid.uuid4())
-            print("🆔 [SessionManager] Generated Frontend User ID:", cls._user_id)
-        else:
-            print("🆔 [SessionManager] Using Existing Frontend User ID:", cls._user_id)
-        return cls._user_id
+        uid = auth_client.get_user_id()
+        if not uid:
+            raise RuntimeError("No authenticated user. Please sign in.")
+        return uid
 
 
 class PersonaService:

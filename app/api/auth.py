@@ -150,7 +150,8 @@ async def oauth_login(request: OAuthLoginRequest):
     
     except Exception as e:
         logger.error(f"OAuth login failed: {e}")
-        raise HTTPException(status_code=500, detail="Authentication failed")
+        # Return error detail to aid debugging (temporary; tighten in production)
+        raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
 
 @router.post("/register", response_model=LoginResponse)
 async def register_user(request: UserRegistrationRequest):
@@ -191,25 +192,30 @@ async def register_user(request: UserRegistrationRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"User registration failed: {e}")
-        raise HTTPException(status_code=500, detail="Registration failed")
+        # Return the error message to help diagnose setup issues (temporary; tighten in prod)
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.get("/profile", response_model=UserProfileResponse)
 async def get_profile(current_user: UserProfile = Depends(get_current_user)):
     """Get current user profile"""
-    return UserProfileResponse(
-        id=current_user.id,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        email=current_user.email,
-        avatar_url=current_user.avatar_url,
-        timezone=current_user.timezone,
-        language_preference=current_user.language_preference,
-        auth_provider=current_user.auth_provider.value if current_user.auth_provider else None,
-        terms_accepted_at=current_user.terms_accepted_at.isoformat() if current_user.terms_accepted_at else None,
-        privacy_policy_accepted_at=current_user.privacy_policy_accepted_at.isoformat() if current_user.privacy_policy_accepted_at else None,
-        created_at=current_user.created_at.isoformat() if current_user.created_at else None,
-        updated_at=current_user.updated_at.isoformat() if current_user.updated_at else None
-    )
+    try:
+        return UserProfileResponse(
+            id=str(current_user.id) if current_user.id is not None else "",
+            first_name=current_user.first_name or "",
+            last_name=current_user.last_name or "",
+            email=current_user.email or "",
+            avatar_url=current_user.avatar_url,
+            timezone=current_user.timezone or "UTC",
+            language_preference=current_user.language_preference or "en",
+            auth_provider=current_user.auth_provider.value if current_user.auth_provider else None,
+            terms_accepted_at=current_user.terms_accepted_at.isoformat() if current_user.terms_accepted_at else None,
+            privacy_policy_accepted_at=current_user.privacy_policy_accepted_at.isoformat() if current_user.privacy_policy_accepted_at else None,
+            created_at=current_user.created_at.isoformat() if current_user.created_at else None,
+            updated_at=current_user.updated_at.isoformat() if current_user.updated_at else None
+        )
+    except Exception as e:
+        logger.error(f"Failed to serialize profile: {e}")
+        raise HTTPException(status_code=500, detail=f"Profile serialization failed: {str(e)}")
 
 @router.put("/profile", response_model=UserProfileResponse)
 async def update_profile(

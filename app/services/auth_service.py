@@ -7,7 +7,7 @@ import os
 import json
 import asyncio
 from datetime import datetime, date
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 import logging
 import aiohttp
 from google.auth.transport import requests
@@ -29,7 +29,10 @@ class OAuthService:
         self.db = db
         
         # OAuth configuration
-        self.google_client_id = os.getenv('GOOGLE_CLIENT_ID')
+        # Support multiple Google client IDs (desktop + web). Use comma-separated list in GOOGLE_CLIENT_IDS,
+        # or fallback to single GOOGLE_CLIENT_ID.
+        google_ids_env = os.getenv('GOOGLE_CLIENT_IDS') or os.getenv('GOOGLE_CLIENT_ID') or ''
+        self.google_client_ids: List[str] = [cid.strip() for cid in google_ids_env.split(',') if cid.strip()]
         self.facebook_app_id = os.getenv('FACEBOOK_APP_ID')
         self.facebook_app_secret = os.getenv('FACEBOOK_APP_SECRET')
         self.apple_team_id = os.getenv('APPLE_TEAM_ID')
@@ -43,8 +46,8 @@ class OAuthService:
         """Validate OAuth configuration"""
         missing_configs = []
         
-        if not self.google_client_id:
-            missing_configs.append("GOOGLE_CLIENT_ID")
+        if not self.google_client_ids:
+            missing_configs.append("GOOGLE_CLIENT_ID or GOOGLE_CLIENT_IDS")
         if not self.facebook_app_id or not self.facebook_app_secret:
             missing_configs.append("FACEBOOK_APP_ID and FACEBOOK_APP_SECRET")
         if not all([self.apple_team_id, self.apple_key_id, self.apple_private_key]):
@@ -57,11 +60,16 @@ class OAuthService:
         """Authenticate with Google OAuth"""
         try:
             # Verify the ID token
+            # Verify signature and expiry first; check audience manually to support multiple client IDs
             idinfo = id_token.verify_oauth2_token(
-                id_token_str, 
-                requests.Request(), 
-                self.google_client_id
+                id_token_str,
+                requests.Request(),
+                clock_skew_in_seconds=60,
             )
+            aud = idinfo.get('aud')
+            if not aud or aud not in self.google_client_ids:
+                logger.error(f"Google token audience mismatch. aud={aud}, allowed={self.google_client_ids}")
+                return False, None, "Invalid Google token"
             
             # Extract user information
             google_user_id = idinfo['sub']
@@ -87,7 +95,8 @@ class OAuthService:
             
         except Exception as e:
             logger.error(f"Google authentication failed: {e}")
-            return False, None, "Invalid Google token"
+            # Surface reason to client to aid debugging (token remains server-verified)
+            return False, None, f"Google auth error: {str(e)}"
     
     async def authenticate_facebook(self, access_token: str) -> Tuple[bool, Optional[UserProfile], Optional[str]]:
         """Authenticate with Facebook OAuth"""
@@ -245,15 +254,23 @@ class OAuthService:
         session_token = str(uuid.uuid4())
         expires_at = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=999999)
         
+        # Proactive housekeeping: prune old/expired sessions occasionally
+        try:
+            await self.prune_old_sessions()
+        except Exception as _:
+            pass
+
         query = """
             INSERT INTO public.user_sessions (
                 user_id, session_token, device_info, is_active, expires_at
-            ) VALUES ($1, $2, $3, $4, $5)
+            ) VALUES ($1, $2, $3::jsonb, $4, $5)
             RETURNING id
         """
         
         try:
-            await self.db.execute(query, user_id, session_token, device_info, True, expires_at)
+            import json as _json
+            device_info_json = _json.dumps(device_info or {})
+            await self.db.execute(query, user_id, session_token, device_info_json, True, expires_at)
             logger.info(f"Created session for user: {user_id}")
             return session_token
         except Exception as e:
@@ -315,13 +332,39 @@ class OAuthService:
         query = """
             INSERT INTO public.user_analytics (
                 user_id, event_type, event_data, session_id
-            ) VALUES ($1, $2, $3, $4)
+            ) VALUES ($1, $2, $3::jsonb, $4)
         """
         
         try:
-            await self.db.execute(query, user_id, event_type, event_data or {}, session_id)
+            import json as _json
+            await self.db.execute(
+                query,
+                user_id,
+                event_type,
+                _json.dumps(event_data or {}),
+                session_id,
+            )
         except Exception as e:
             logger.error(f"Failed to track analytics event for user {user_id}: {e}")
+
+    async def prune_old_sessions(self, retention_days: int = 30) -> None:
+        """Delete expired or inactive sessions older than retention window.
+
+        This keeps the user_sessions table from growing indefinitely while
+        preserving recent auditability.
+        """
+        # Safe integer formatting (internal constant)
+        days = max(1, int(retention_days))
+        cutoff_expr = f"NOW() - INTERVAL '{days} days'"
+        query = f"""
+            DELETE FROM public.user_sessions
+            WHERE expires_at < {cutoff_expr}
+               OR (is_active = false AND created_at < {cutoff_expr})
+        """
+        try:
+            await self.db.execute(query)
+        except Exception as e:
+            logger.error(f"Pruning sessions failed: {e}")
 
 # Global OAuth service instance
 oauth_service = OAuthService() 

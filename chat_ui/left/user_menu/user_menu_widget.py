@@ -1,9 +1,10 @@
 # user_menu_widget.py
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QSizePolicy, QMessageBox, QDialog, QMainWindow
 from PyQt6.QtGui import QPainter, QColor, QCursor
 from PyQt6.QtCore import Qt
 from chat_ui.left.personas.neurapals import NeuraPalsDialog
 from chat_ui.services.persona_service import PersonaService
+from chat_ui.services.auth_client import auth_client, BACKEND_BASE_URL
 
 
 
@@ -35,6 +36,7 @@ class UserMenuWidget(QWidget):
         btn_logout.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn_logout.setStyleSheet(self._button_style())
         btn_logout.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        btn_logout.clicked.connect(self.confirm_logout)
 
         layout.addWidget(btn_settings)
         layout.addWidget(btn_models)
@@ -81,3 +83,35 @@ class UserMenuWidget(QWidget):
 
         dialog = NeuraPalsDialog(personas, swap_persona, self)
         dialog.exec()
+
+    def confirm_logout(self):
+        m = QMessageBox(self)
+        m.setWindowTitle("Sign out")
+        m.setText("Do you want to log out?")
+        m.setStandardButtons(QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ok)
+        m.setDefaultButton(QMessageBox.StandardButton.Ok)
+        if m.exec() == QMessageBox.StandardButton.Ok:
+            # Invalidate backend session and clear local token
+            try:
+                import requests
+                requests.post(
+                    f"{BACKEND_BASE_URL}/auth/logout",
+                    headers=auth_client.get_headers(),
+                    timeout=10,
+                )
+            except Exception:
+                pass
+            auth_client.clear_session_token()
+            # Hide main window, show login dialog, then re-show main on success
+            top = self.window()
+            if isinstance(top, QMainWindow):
+                top.hide()
+            from chat_ui.components.LoginDialog import LoginDialog
+            dlg = LoginDialog(None)
+            code = dlg.exec()
+            if code == QDialog.DialogCode.Accepted:
+                if isinstance(top, QMainWindow):
+                    top.show()
+            else:
+                from PyQt6.QtWidgets import QApplication
+                QApplication.instance().quit()

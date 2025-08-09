@@ -5,13 +5,13 @@ Handles user authentication, profile management, and OAuth integration
 
 import uuid
 from datetime import datetime, date
+import json
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 import logging
 from enum import Enum
 
 from app.config.database import db
-from app.config.supabase import supabase
 
 logger = logging.getLogger(__name__)
 
@@ -80,24 +80,29 @@ class UserService:
         # Generate user ID (UUID)
         user_id = str(uuid.uuid4())
         
-        # Prepare user data
-        user_data = {
-            'id': user_id,
-            'first_name': first_name,
-            'last_name': last_name,
-            'email': email.lower(),
-            'birthdate': birthdate,
-            'auth_provider': auth_provider.value,
-            'auth_provider_id': auth_provider_id,
-            'avatar_url': avatar_url,
-            'timezone': kwargs.get('timezone', 'UTC'),
-            'language_preference': kwargs.get('language_preference', 'en'),
-            'notification_preferences': kwargs.get('notification_preferences', {}),
-            'ui_preferences': kwargs.get('ui_preferences', {}),
-            'is_active': True,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
-        }
+        # Prepare user data explicitly in the same order as the INSERT columns
+        timezone = kwargs.get('timezone', 'UTC')
+        language_preference = kwargs.get('language_preference', 'en')
+        notification_preferences = kwargs.get('notification_preferences', {})
+        ui_preferences = kwargs.get('ui_preferences', {})
+
+        values = [
+            user_id,                      # $1  id
+            first_name,                   # $2  first_name
+            last_name,                    # $3  last_name
+            email.lower(),                # $4  email
+            birthdate,                    # $5  birthdate
+            auth_provider.value,          # $6  auth_provider
+            auth_provider_id,             # $7  auth_provider_id
+            avatar_url,                   # $8  avatar_url
+            timezone,                     # $9  timezone
+            language_preference,          # $10 language_preference
+            notification_preferences,     # $11 notification_preferences (JSONB)
+            ui_preferences,               # $12 ui_preferences (JSONB)
+            True,                         # $13 is_active
+            datetime.utcnow(),            # $14 created_at
+            datetime.utcnow(),            # $15 updated_at
+        ]
         
         # Insert into database
         query = """
@@ -105,12 +110,16 @@ class UserService:
                 id, first_name, last_name, email, birthdate, auth_provider, 
                 auth_provider_id, avatar_url, timezone, language_preference,
                 notification_preferences, ui_preferences, is_active, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)
             RETURNING *
         """
         
         try:
-            result = await self.db.fetchrow(query, *user_data.values())
+            # Ensure JSON types are encoded properly for the database driver
+            values[10] = json.dumps(values[10])  # notification_preferences
+            values[11] = json.dumps(values[11])  # ui_preferences
+
+            result = await self.db.fetchrow(query, *values)
             logger.info(f"Created user: {email}")
             return self._row_to_user_profile(result)
         except Exception as e:

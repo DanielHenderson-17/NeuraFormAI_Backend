@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QApplication, QSizePoli
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QEvent
 from PyQt6.QtGui import QCursor
 from chat_ui.left.user_menu.user_menu_widget import UserMenuWidget
-from chat_ui.services.persona_service import SessionManager
+from chat_ui.services.auth_client import auth_client
 
 
 class UserContainer(QFrame):
@@ -41,9 +41,17 @@ class UserContainer(QFrame):
         """)
         self.avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # User ID label
-        user_id = SessionManager.get_user_id()
-        self.user_id_label = QLabel(user_id[:])  # Show only first 8 chars
+        # User name label (from authenticated profile)
+        profile = auth_client.fetch_profile()
+        first_name = (profile or {}).get("first_name") or "User"
+        last_name = (profile or {}).get("last_name") or ""
+        display_name = (first_name + (" " + last_name if last_name else "")).strip()
+
+        # Set avatar initial
+        initial = (first_name[:1] or "?").upper()
+        self.avatar.setText(initial)
+
+        self.user_id_label = QLabel(display_name)
         self.user_id_label.setStyleSheet("color: white; font-size: 11px;")
         self.user_id_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
