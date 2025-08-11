@@ -123,5 +123,14 @@ class PersonaManager:
             "locked": meta.get("locked", False),
             "validation_token": meta.get("validation_token", ""),
         }
+    
+    # === Get active persona name ===
+    @classmethod
+    def get_active_persona_name(cls, user_id: str) -> str:
+        """
+        Returns the name of the active persona for a given user.
+        """
+        active_metadata = cls.get_active_metadata(user_id)
+        return active_metadata.get("name", "Assistant")
 
 

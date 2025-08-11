@@ -27,7 +27,7 @@ app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 
 # === Include routers for chat and personas ===
 app.include_router(personas.router, prefix="/api")
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api")
 
 @app.on_event("startup")
 async def log_openrouter_credits():

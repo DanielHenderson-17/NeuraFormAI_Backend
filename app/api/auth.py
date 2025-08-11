@@ -62,6 +62,11 @@ class LoginResponse(BaseModel):
     session_token: Optional[str] = None
     message: Optional[str] = None
     requires_registration: bool = False
+    token_email: Optional[str] = None
+    token_sub: Optional[str] = None
+    token_first_name: Optional[str] = None
+    token_last_name: Optional[str] = None
+    token_picture: Optional[str] = None
 
 class UserProfileResponse(BaseModel):
     id: str
@@ -133,13 +138,22 @@ async def oauth_login(request: OAuthLoginRequest):
                 session_token=session_token
             )
         
-        elif message == "additional_info_required":
+        elif message == "additional_info_required" or (isinstance(message, dict) and message.get("message") == "additional_info_required"):
             # User doesn't exist, needs to register
-            return LoginResponse(
-                success=False,
-                message="User registration required",
-                requires_registration=True
-            )
+            if isinstance(message, dict):
+                # Return the user data for registration
+                return LoginResponse(
+                    success=False,
+                    message="User registration required",
+                    requires_registration=True,
+                    **{k: v for k, v in message.items() if k not in ["message", "requires_registration"]}
+                )
+            else:
+                return LoginResponse(
+                    success=False,
+                    message="User registration required",
+                    requires_registration=True
+                )
         
         else:
             # Authentication failed

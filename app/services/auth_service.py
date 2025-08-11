@@ -91,7 +91,16 @@ class OAuthService:
                 return False, None, f"Email {email} is already registered with {existing_user.auth_provider.value}"
             
             # User doesn't exist, need to collect additional info
-            return False, None, "additional_info_required"
+            # Return user data for registration
+            return False, None, {
+                "message": "additional_info_required",
+                "requires_registration": True,
+                "token_email": email,
+                "token_sub": google_user_id,
+                "token_first_name": first_name,
+                "token_last_name": last_name,
+                "token_picture": avatar_url
+            }
             
         except Exception as e:
             logger.error(f"Google authentication failed: {e}")
