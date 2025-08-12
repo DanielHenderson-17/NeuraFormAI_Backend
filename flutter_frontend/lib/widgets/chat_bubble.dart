@@ -42,7 +42,7 @@ class ChatBubble extends StatelessWidget {
         // Message bubble
         Container(
           constraints: const BoxConstraints(
-            maxWidth: 200,
+            maxWidth: 250,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(

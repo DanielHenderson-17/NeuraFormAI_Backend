@@ -197,7 +197,7 @@ class _ChatWindowState extends State<ChatWindow> {
                 )
               : ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 16),
                   itemCount: widget.messages.length,
                   itemBuilder: (context, index) {
                     final message = widget.messages[index];
