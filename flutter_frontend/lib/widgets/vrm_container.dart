@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart';
 import 'package:path_provider/path_provider.dart';
+import '../services/vrm_expression_manager.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -19,11 +20,17 @@ class VRMContainer extends StatefulWidget {
 
   @override
   State<VRMContainer> createState() => _VRMContainerState();
+
+  // Public methods to access VRM functions from parent widgets
+  static _VRMContainerState? of(BuildContext context) {
+    return context.findAncestorStateOfType<_VRMContainerState>();
+  }
 }
 
 class _VRMContainerState extends State<VRMContainer> {
   WebViewController? _webViewController;
   WebviewController? _desktopWebviewController;
+  VRMExpressionManager? _expressionManager;
   bool _isWebViewReady = false;
   bool _isWebViewSupported = true;
   bool _useDesktopWebview = false;
@@ -111,6 +118,10 @@ class _VRMContainerState extends State<VRMContainer> {
       setState(() {
         _isWebViewReady = true;
       });
+      
+      // Initialize expression manager with the webview controller
+      _expressionManager = VRMExpressionManager();
+      await _expressionManager!.initialize(_desktopWebviewController!);
       
       _checkAndLoadVRM();
     } catch (e) {
@@ -226,10 +237,15 @@ class _VRMContainerState extends State<VRMContainer> {
     }
   }
   
-  // Expression control methods (matching chat_ui functionality)
+  // Expression control methods (now using VRMExpressionManager)
   Future<void> triggerBlink() async {
-    if (!_isWebViewReady) return;
-    await _executeJavaScript('window.triggerBlink();');
+    if (_expressionManager != null) {
+      await _expressionManager!.triggerBlink();
+    } else {
+      // Fallback for when expression manager is not available
+      if (!_isWebViewReady) return;
+      await _executeJavaScript('window.triggerBlink();');
+    }
   }
   
   Future<void> setExpression(String expressionName, double weight) async {
@@ -238,8 +254,13 @@ class _VRMContainerState extends State<VRMContainer> {
   }
   
   Future<void> setEmotion(String emotion) async {
-    if (!_isWebViewReady) return;
-    await _executeJavaScript('window.setEmotion("$emotion");');
+    if (_expressionManager != null) {
+      await _expressionManager!.setEmotion(emotion);
+    } else {
+      // Fallback
+      if (!_isWebViewReady) return;
+      await _executeJavaScript('window.setEmotion("$emotion");');
+    }
   }
   
   Future<void> setLipSync(String phoneme) async {
@@ -253,8 +274,38 @@ class _VRMContainerState extends State<VRMContainer> {
   }
   
   Future<void> resetExpressions() async {
-    if (!_isWebViewReady) return;
-    await _executeJavaScript('window.resetExpressions();');
+    if (_expressionManager != null) {
+      await _expressionManager!.clearAllExpressions();
+    } else {
+      // Fallback
+      if (!_isWebViewReady) return;
+      await _executeJavaScript('window.resetExpressions();');
+    }
+  }
+
+  // New methods for voice-synchronized lip sync
+  Future<void> startVoiceLipSync(String text, {required double audioDuration}) async {
+    if (_expressionManager != null) {
+      await _expressionManager!.startVoiceLipSync(text, audioDuration: audioDuration);
+    } else {
+      print("⚠️ [VRMContainer] Expression manager not available for voice lip sync");
+    }
+  }
+
+  Future<void> startTextLipSync(String text, {double durationPerWord = 0.15}) async {
+    if (_expressionManager != null) {
+      await _expressionManager!.startTextLipSync(text, durationPerWord: durationPerWord);
+    } else {
+      print("⚠️ [VRMContainer] Expression manager not available for text lip sync");
+    }
+  }
+
+  Future<void> stopLipSync() async {
+    if (_expressionManager != null) {
+      await _expressionManager!.stopLipSync();
+    } else {
+      await clearLipSync();
+    }
   }
   
   @override
@@ -468,6 +519,7 @@ class _VRMContainerState extends State<VRMContainer> {
   
   @override
   void dispose() {
+    _expressionManager?.dispose();
     super.dispose();
   }
 }

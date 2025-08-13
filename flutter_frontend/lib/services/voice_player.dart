@@ -63,9 +63,25 @@ class VoicePlayer {
         final tempFile = File('${tempDir.path}/tts_audio_${DateTime.now().millisecondsSinceEpoch}.mp3');
         await tempFile.writeAsBytes(response.bodyBytes);
 
-        // Calculate approximate duration (this is simplified; in Python it reads the MP3 metadata)
-        final audioDurationSeconds = response.bodyBytes.length / 16000.0; // Rough estimate
-        print("🎧 [VoicePlayer] Estimated Duration: ${audioDurationSeconds}s | Bytes: ${response.bodyBytes.length}");
+        // Get EXACT audio duration from MP3 metadata - EXACT match to Python implementation
+        // In Python: audio_duration_seconds = len(audio) / 1000.0  # Convert ms to seconds
+        double audioDurationSeconds;
+        try {
+          await _audioPlayer!.setSource(DeviceFileSource(tempFile.path));
+          final duration = await _audioPlayer!.getDuration();
+          if (duration != null) {
+            audioDurationSeconds = duration.inMilliseconds / 1000.0; // EXACT Python conversion
+            print("🎧 [VoicePlayer] EXACT MP3 Duration: ${audioDurationSeconds.toStringAsFixed(2)}s | Bytes: ${response.bodyBytes.length}");
+          } else {
+            // Fallback to estimation if duration reading fails
+            audioDurationSeconds = response.bodyBytes.length / 16000.0;
+            print("🎧 [VoicePlayer] Fallback Duration Estimate: ${audioDurationSeconds.toStringAsFixed(2)}s | Bytes: ${response.bodyBytes.length}");
+          }
+        } catch (e) {
+          // Fallback to estimation if metadata reading fails
+          audioDurationSeconds = response.bodyBytes.length / 16000.0;
+          print("⚠️ [VoicePlayer] Failed to read MP3 duration, using estimate: ${audioDurationSeconds.toStringAsFixed(2)}s | Error: $e");
+        }
 
         if (onStart != null) {
           onStart(audioDurationSeconds); // Pass duration to callback

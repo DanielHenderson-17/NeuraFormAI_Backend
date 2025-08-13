@@ -55,6 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _centerInputController = TextEditingController();
   final FocusNode _centerInputFocusNode = FocusNode();
   final GlobalKey<State<ChatWindow>> _chatWindowKey = GlobalKey<State<ChatWindow>>();
+  final GlobalKey<State<VRMContainer>> _vrmContainerKey = GlobalKey<State<VRMContainer>>();
   bool _isLoading = false;
   bool _isVoiceEnabled = false;
   
@@ -397,7 +398,17 @@ class _MyHomePageState extends State<MyHomePage> {
               // Play voice if enabled for welcome back
               if (_isVoiceEnabled) {
                 print("🎤 Voice enabled - starting TTS playback for welcome back");
-                VoicePlayer.playReplyFromBackend(response, voiceEnabled: true);
+                VoicePlayer.playReplyFromBackend(response, voiceEnabled: true, onStart: (audioDuration) {
+                  // Start voice-synchronized lip sync
+                  if (audioDuration != null) {
+                    final vrmState = _vrmContainerKey.currentState as dynamic;
+                    vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
+                  }
+                });
+              } else {
+                // Voice disabled - just do text-based lip sync for welcome back with EXACT Python timing
+                final vrmState = _vrmContainerKey.currentState as dynamic;
+                vrmState?.startTextLipSync(response, durationPerWord: 0.08); // EXACT Python value
               }
             } else if (_activeConversationId == null && _messages.isEmpty) {
               // New conversation - send introduction (hidden from history)
@@ -422,7 +433,17 @@ class _MyHomePageState extends State<MyHomePage> {
               // Play voice if enabled for persona introduction
               if (_isVoiceEnabled) {
                 print("🎤 Voice enabled - starting TTS playback for persona introduction");
-                VoicePlayer.playReplyFromBackend(response, voiceEnabled: true);
+                VoicePlayer.playReplyFromBackend(response, voiceEnabled: true, onStart: (audioDuration) {
+                  // Start voice-synchronized lip sync
+                  if (audioDuration != null) {
+                    final vrmState = _vrmContainerKey.currentState as dynamic;
+                    vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
+                  }
+                });
+              } else {
+                // Voice disabled - just do text-based lip sync for persona introduction with EXACT Python timing
+                final vrmState = _vrmContainerKey.currentState as dynamic;
+                vrmState?.startTextLipSync(response, durationPerWord: 0.08); // EXACT Python value
               }
             } else {
               print("🔄 [Main] Switched to persona ${personaName} - no welcome message needed (${_messages.length} messages loaded)");
@@ -483,7 +504,17 @@ class _MyHomePageState extends State<MyHomePage> {
           // Play voice if enabled (matches Python frontend behavior)
           if (_isVoiceEnabled) {
             print("🎤 Voice enabled - starting TTS playback");
-            VoicePlayer.playReplyFromBackend(response, voiceEnabled: true);
+            VoicePlayer.playReplyFromBackend(response, voiceEnabled: true, onStart: (audioDuration) {
+              // Start voice-synchronized lip sync
+              if (audioDuration != null) {
+                final vrmState = _vrmContainerKey.currentState as dynamic;
+                vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
+              }
+            });
+          } else {
+            // Voice disabled - just do text-based lip sync with EXACT Python timing
+            final vrmState = _vrmContainerKey.currentState as dynamic;
+            vrmState?.startTextLipSync(response, durationPerWord: 0.08); // EXACT Python value
           }
           
         } catch (e) {
@@ -1080,6 +1111,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   Expanded(
                     flex: 3,
                     child: VRMContainer(
+                      key: _vrmContainerKey,
                       vrmModel: _currentPersona?.name != null ? '${_currentPersona!.name.toLowerCase()}_model.vrm' : null,
                     ),
                   ),
