@@ -117,8 +117,10 @@ class PersonaService {
         if (locked) {
           print("🔒 Persona '$personaName' is locked. VRM will not load.");
         } else if (vrmModel.isNotEmpty) {
-          print("✅ Would load VRM model for $personaName: $vrmModel");
+          print("✅ Loading VRM model for $personaName: $vrmModel");
           _onVrmModelChanged?.call(vrmModel);
+        } else {
+          print("⚠️ No VRM model specified for persona $personaName");
         }
         
         // Notify persona change

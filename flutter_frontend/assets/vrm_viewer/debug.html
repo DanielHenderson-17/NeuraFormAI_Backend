@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VRM Viewer</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+      }
+      canvas {
+        display: block;
+      }
+      #debug {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+        background: rgba(0,0,0,0.8);
+        padding: 10px;
+        border-radius: 5px;
+        max-width: 300px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="debug">Loading VRM Viewer...</div>
+    <script src="./bundle.js"></script>
+    <script>
+      // Debug the VRM viewer startup
+      console.log('HTML loaded, checking if init function exists...');
+      
+      // Check if our global exports worked
+      if (typeof window.THREE !== 'undefined') {
+        document.getElementById('debug').innerHTML += '<br>✅ THREE.js global available';
+      } else {
+        document.getElementById('debug').innerHTML += '<br>❌ THREE.js global NOT available';
+      }
+      
+      // Check if VRM viewer functions exist
+      if (typeof window.init === 'function') {
+        document.getElementById('debug').innerHTML += '<br>✅ init function available';
+      } else {
+        document.getElementById('debug').innerHTML += '<br>❌ init function NOT available';
+      }
+      
+      if (typeof window.loadVRM === 'function') {
+        document.getElementById('debug').innerHTML += '<br>✅ loadVRM function available';
+      } else {
+        document.getElementById('debug').innerHTML += '<br>❌ loadVRM function NOT available';
+      }
+      
+      // Try to start the viewer
+      setTimeout(() => {
+        try {
+          if (typeof window.init === 'function') {
+            document.getElementById('debug').innerHTML += '<br>🚀 Calling init()...';
+            window.init();
+            document.getElementById('debug').innerHTML += '<br>✅ init() called successfully';
+          } else {
+            document.getElementById('debug').innerHTML += '<br>❌ Cannot call init() - function not found';
+            document.getElementById('debug').innerHTML += '<br>🔧 Creating fallback scene...';
+            
+            // Create a fallback scene since init isn't available
+            if (typeof window.THREE !== 'undefined') {
+              // Clear any existing canvases first
+              const existingCanvases = document.querySelectorAll('canvas');
+              existingCanvases.forEach(canvas => canvas.remove());
+              
+              const scene = new window.THREE.Scene();
+              const camera = new window.THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+              const renderer = new window.THREE.WebGLRenderer({ antialias: true });
+              
+              renderer.setSize(window.innerWidth, window.innerHeight);
+              renderer.setClearColor(0x004400); // Dark green background to distinguish from black
+              
+              // Force the canvas to be visible and on top
+              renderer.domElement.style.position = 'absolute';
+              renderer.domElement.style.top = '0';
+              renderer.domElement.style.left = '0';
+              renderer.domElement.style.zIndex = '10';
+              renderer.domElement.style.border = '3px solid yellow'; // Yellow border to make it obvious
+              
+              document.body.appendChild(renderer.domElement);
+              
+              // Create a visible test cube
+              const geometry = new window.THREE.BoxGeometry(2, 2, 2);
+              const material = new window.THREE.MeshBasicMaterial({ color: 0x00ff00 });
+              const cube = new window.THREE.Mesh(geometry, material);
+              scene.add(cube);
+              
+              camera.position.z = 5;
+              
+              // Add lighting for better visibility
+              const light = new window.THREE.DirectionalLight(0xffffff, 1);
+              light.position.set(5, 5, 5);
+              scene.add(light);
+              
+              function animate() {
+                requestAnimationFrame(animate);
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+                renderer.render(scene, camera);
+              }
+              animate();
+              
+              document.getElementById('debug').innerHTML += '<br>✅ Fallback scene created';
+              document.getElementById('debug').innerHTML += '<br>🎨 Canvas with yellow border added';
+            }
+          }
+        } catch (error) {
+          document.getElementById('debug').innerHTML += '<br>❌ Error calling init(): ' + error.message;
+          console.error('Init error:', error);
+        }
+      }, 100);
+      
+      // Monitor VRM viewer ready state
+      const checkReady = setInterval(() => {
+        if (window.vrmViewerReady) {
+          document.getElementById('debug').innerHTML += '<br>🟢 VRM Viewer Ready!';
+          
+          // Try to load a VRM model if the function exists
+          if (typeof window.loadVRM === 'function') {
+            document.getElementById('debug').innerHTML += '<br>🚀 Attempting to load VRM...';
+            try {
+              // The VRM will be loaded via base64/blob from Flutter
+              // For now, just indicate that we're ready to receive it
+              document.getElementById('debug').innerHTML += '<br>✅ VRM load function ready';
+              document.getElementById('debug').innerHTML += '<br>⏳ Waiting for Flutter to send VRM data...';
+              
+              // Check if VRM loaded after a delay
+              setTimeout(() => {
+                if (window.vrm) {
+                  document.getElementById('debug').innerHTML += '<br>🎭 VRM object exists!';
+                  document.getElementById('debug').innerHTML += '<br>🎭 VRM name: ' + (window.vrm.name || 'Unknown');
+                  
+                  // Hide the fallback scene since VRM loaded
+                  const canvas = document.querySelector('canvas');
+                  if (canvas && canvas.style.border === '3px solid yellow') {
+                    canvas.style.display = 'none';
+                    document.getElementById('debug').innerHTML += '<br>🎯 Fallback scene hidden, VRM displayed';
+                  }
+                } else {
+                  document.getElementById('debug').innerHTML += '<br>❌ VRM object not found after loading';
+                }
+              }, 5000); // Longer delay for base64 loading
+              
+            } catch (error) {
+              document.getElementById('debug').innerHTML += '<br>❌ VRM load error: ' + error.message;
+            }
+          }
+          
+          clearInterval(checkReady);
+        }
+      }, 1000);
+      
+      // Log any errors
+      window.addEventListener('error', function(e) {
+        document.getElementById('debug').innerHTML += '<br>❌ Error: ' + e.error.message;
+        console.error('Global error:', e);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "vrm_viewer",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "build": "rollup -c",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "rollup": "^4.46.2"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "^3.4.2",
+    "three": "^0.179.0"
+  }
+}

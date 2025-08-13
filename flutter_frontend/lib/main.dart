@@ -82,7 +82,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _loadInitialPersona() async {
     try {
       // Check if user is signed in
-      final isSignedIn = await AuthService.isSignedIn();
+      bool isSignedIn = await AuthService.isSignedIn();
       
       setState(() {
         _isSignedIn = isSignedIn;
@@ -90,10 +90,11 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       
       if (isSignedIn) {
-      // Set the user ID in PersonaService
-      final userId = AuthService.userId;
-      if (userId != null) {
-        PersonaService.setUserId(userId);
+        // Set the user ID in PersonaService
+        final userId = AuthService.userId;
+        if (userId != null) {
+          PersonaService.setUserId(userId);
+        }
         
         // Load conversations list
         await _loadConversations();
@@ -107,16 +108,17 @@ class _MyHomePageState extends State<MyHomePage> {
           });
           
           // Get conversation ID for the active persona
-          final conversationId = await PersonaService.getConversationForPersona(userId, persona.name);
-          setState(() {
-            _activeConversationId = conversationId;
-          });
-            
-          // Load conversation history if conversation exists
-          if (conversationId != null) {
-            await _loadConversationHistory();
+          if (userId != null) {
+            final conversationId = await PersonaService.getConversationForPersona(userId, persona.name);
+            setState(() {
+              _activeConversationId = conversationId;
+            });
+              
+            // Load conversation history if conversation exists
+            if (conversationId != null) {
+              await _loadConversationHistory();
+            }
           }
-        }
         }
       }
     } catch (e) {
@@ -1077,41 +1079,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   // VRM container (stretch=3 like Python)
                   Expanded(
                     flex: 3,
-              child: Container(
-                decoration: BoxDecoration(
-                        color: const Color(0xFF1e1e1e),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.view_in_ar,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'VRM Viewer',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '3D Model Viewer\n(Temporarily Disabled)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    child: VRMContainer(
+                      vrmModel: _currentPersona?.name != null ? '${_currentPersona!.name.toLowerCase()}_model.vrm' : null,
                     ),
                   ),
                   

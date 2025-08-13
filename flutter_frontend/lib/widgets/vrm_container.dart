@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_windows/webview_windows.dart';
+import 'package:path_provider/path_provider.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -16,262 +22,239 @@ class VRMContainer extends StatefulWidget {
 }
 
 class _VRMContainerState extends State<VRMContainer> {
-  late WebViewController _webViewController;
+  WebViewController? _webViewController;
+  WebviewController? _desktopWebviewController;
   bool _isWebViewReady = false;
+  bool _isWebViewSupported = true;
+  bool _useDesktopWebview = false;
   String? _currentVrmModel;
+  String? _htmlPath;
+  String? _errorMessage;
   
   @override
   void initState() {
     super.initState();
     _currentVrmModel = widget.vrmModel;
-    _initializeWebView();
+    _useDesktopWebview = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    _setupVRMViewer();
   }
   
-  void _initializeWebView() {
-    _webViewController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (String url) {
-            setState(() {
-              _isWebViewReady = true;
-            });
-            _loadVRMModel();
-          },
-        ),
-      )
-      ..loadHtmlString(_getVRMViewerHTML());
+  Future<void> _setupVRMViewer() async {
+    try {
+      print("🔧 [VRMContainer] Starting VRM viewer setup...");
+      print("🔧 [VRMContainer] Platform: ${Platform.operatingSystem}");
+      print("🔧 [VRMContainer] Using desktop webview: $_useDesktopWebview");
+      
+      await _copyAssetsToTempDirectory();
+      if (_useDesktopWebview) {
+        await _initializeDesktopWebView();
+      } else {
+        await _initializeWebView();
+      }
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to setup VRM viewer: $e");
+      print("❌ [VRMContainer] Stack trace: ${StackTrace.current}");
+      setState(() {
+        _isWebViewSupported = false;
+        _errorMessage = "VRM Viewer not supported on this platform: $e";
+      });
+    }
   }
   
-  String _getVRMViewerHTML() {
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VRM Viewer</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        #vrm-container {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-        }
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 18px;
-            z-index: 1000;
-        }
-        #controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1001;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 8px;
-            color: white;
-        }
-        .control-btn {
-            background: #4CAF50;
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            margin: 2px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .control-btn:hover {
-            background: #45a049;
-        }
-        .control-btn:disabled {
-            background: #cccccc;
-            cursor: not-allowed;
-        }
-    </style>
-</head>
-<body>
-    <div id="vrm-container">
-        <div id="loading">Loading VRM Viewer...</div>
-        <div id="controls">
-            <button class="control-btn" onclick="resetCamera()">Reset Camera</button>
-            <button class="control-btn" onclick="toggleAnimation()">Toggle Animation</button>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three-vrm@0.0.30/lib/three-vrm.min.js"></script>
+  Future<void> _copyAssetsToTempDirectory() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final vrmViewerDir = Directory('${tempDir.path}/vrm_viewer');
+      
+      if (!await vrmViewerDir.exists()) {
+        await vrmViewerDir.create(recursive: true);
+      }
+      
+      // Copy HTML file
+      final htmlContent = await rootBundle.loadString('assets/vrm_viewer/index.html');
+      final htmlFile = File('${vrmViewerDir.path}/index.html');
+      await htmlFile.writeAsString(htmlContent);
+      
+      // Copy bundle.js file
+      final bundleContent = await rootBundle.loadString('assets/vrm_viewer/bundle.js');
+      final bundleFile = File('${vrmViewerDir.path}/bundle.js');
+      await bundleFile.writeAsString(bundleContent);
+      
+      _htmlPath = htmlFile.path;
+      print("🟢 [VRMContainer] Assets copied to: ${vrmViewerDir.path}");
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to copy assets: $e");
+      throw e;
+    }
+  }
+  
+  Future<void> _initializeDesktopWebView() async {
+    if (_htmlPath == null) {
+      print("❌ [VRMContainer] HTML path is null, cannot initialize WebView");
+      return;
+    }
     
-    <script>
-        let scene, camera, renderer, mixer, clock;
-        let currentModel = null;
-        let isAnimating = true;
-        
-        function init() {
-            // Scene setup
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB);
-            
-            // Camera setup
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.5, 3);
-            
-            // Renderer setup
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            
-            document.getElementById('vrm-container').appendChild(renderer.domElement);
-            
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(1, 1, 1);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            scene.add(directionalLight);
-            
-            // Clock for animations
-            clock = new THREE.Clock();
-            
-            // Handle window resize
-            window.addEventListener('resize', onWindowResize, false);
-            
-            // Start render loop
-            animate();
-            
-            // Hide loading
-            document.getElementById('loading').style.display = 'none';
-        }
-        
-        function loadVRMModel(modelPath) {
-            if (currentModel) {
-                scene.remove(currentModel);
-            }
-            
-            const loader = new THREE.GLTFLoader();
-            loader.load(
-                modelPath,
-                function (gltf) {
-                    THREE.VRM.from(gltf).then(function (vrm) {
-                        currentModel = vrm.scene;
-                        
-                        // Position the model
-                        currentModel.position.set(0, 0, 0);
-                        
-                        // Add to scene
-                        scene.add(currentModel);
-                        
-                        // Setup mixer for animations
-                        if (gltf.animations && gltf.animations.length > 0) {
-                            mixer = new THREE.AnimationMixer(currentModel);
-                            const action = mixer.clipAction(gltf.animations[0]);
-                            action.play();
-                        }
-                        
-                        console.log('VRM model loaded successfully');
-                    });
-                },
-                function (progress) {
-                    console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
-                },
-                function (error) {
-                    console.error('Error loading VRM model:', error);
-                }
-            );
-        }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            if (mixer && isAnimating) {
-                mixer.update(clock.getDelta());
-            }
-            
-            renderer.render(scene, camera);
-        }
-        
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        
-        function resetCamera() {
-            camera.position.set(0, 1.5, 3);
-            camera.lookAt(0, 1, 0);
-        }
-        
-        function toggleAnimation() {
-            isAnimating = !isAnimating;
-            const btn = event.target;
-            btn.textContent = isAnimating ? 'Pause Animation' : 'Play Animation';
-        }
-        
-        // Mouse controls
-        let isMouseDown = false;
-        let mouseX = 0;
-        let mouseY = 0;
-        
-        renderer.domElement.addEventListener('mousedown', function(event) {
-            isMouseDown = true;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-        });
-        
-        renderer.domElement.addEventListener('mouseup', function() {
-            isMouseDown = false;
-        });
-        
-        renderer.domElement.addEventListener('mousemove', function(event) {
-            if (isMouseDown) {
-                const deltaX = event.clientX - mouseX;
-                const deltaY = event.clientY - mouseY;
-                
-                camera.position.x += deltaX * 0.01;
-                camera.position.y -= deltaY * 0.01;
-                
-                mouseX = event.clientX;
-                mouseY = event.clientY;
-            }
-        });
-        
-        // Initialize when page loads
-        window.addEventListener('load', init);
-        
-        // Function to be called from Flutter
-        window.loadVRMModel = loadVRMModel;
-    </script>
-</body>
-</html>
-    ''';
+    try {
+      print("🔧 [VRMContainer] Initializing desktop WebView...");
+      print("🔧 [VRMContainer] HTML path: $_htmlPath");
+      
+      _desktopWebviewController = WebviewController();
+      
+      print("🔧 [VRMContainer] WebView controller created, initializing...");
+      await _desktopWebviewController!.initialize();
+      
+      print("🔧 [VRMContainer] WebView initialized, loading URL...");
+      // Load the HTML file
+      await _desktopWebviewController!.loadUrl('file:///${_htmlPath!}');
+      
+      print("🟢 [VRMContainer] Desktop WebView initialized successfully");
+      setState(() {
+        _isWebViewReady = true;
+      });
+      
+      _checkAndLoadVRM();
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to initialize Desktop WebView: $e");
+      print("❌ [VRMContainer] WebView error stack trace: ${StackTrace.current}");
+      throw e;
+    }
   }
   
-  void _loadVRMModel() {
-    if (!_isWebViewReady || _currentVrmModel == null) return;
+  Future<void> _initializeWebView() async {
+    try {
+      if (kIsWeb) {
+        // For web, skip WebView and show information instead
+        print("🌐 [VRMContainer] Running on web - WebView not supported, using fallback UI");
+        setState(() {
+          _isWebViewReady = false; // Use fallback UI on web
+        });
+        return;
+      }
+      
+      _webViewController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onPageFinished: (String url) {
+              print("🟢 [VRMContainer] WebView page finished loading");
+              setState(() {
+                _isWebViewReady = true;
+              });
+              _checkAndLoadVRM();
+            },
+          ),
+        )
+        ..enableZoom(false);
+      
+      if (_htmlPath != null) {
+        await _webViewController!.loadFile(_htmlPath!);
+      }
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to initialize WebView: $e");
+      throw e;
+    }
+  }
+  
+  Future<void> _checkAndLoadVRM() async {
+    if (!_isWebViewReady) return;
     
-    final modelPath = 'assets/legacy/vrms/$_currentVrmModel';
-    _webViewController.runJavaScript('''
-      if (window.loadVRMModel) {
-        window.loadVRMModel('$modelPath');
+    // Check if VRM viewer is ready
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _executeJavaScript('''
+      if (window.vrmViewerReady === true) {
+        console.log("VRM Viewer is ready");
+        window.postMessage("READY", "*");
+      } else {
+        console.log("VRM Viewer not ready yet");
+        setTimeout(() => {
+          if (window.vrmViewerReady === true) {
+            window.postMessage("READY", "*");
+          }
+        }, 1000);
       }
     ''');
+    
+    // Load VRM model if one is specified
+    if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
+      await _loadVRMModel(_currentVrmModel!);
+    }
+  }
+  
+  Future<void> _loadVRMModel(String vrmModel) async {
+    if (!_isWebViewReady) return;
+    
+    try {
+      // Get the VRM file from assets
+      final vrmData = await rootBundle.load('assets/vrm_models/$vrmModel');
+      final bytes = vrmData.buffer.asUint8List();
+      
+      print("🟢 [VRMContainer] Loading VRM model: $vrmModel (${bytes.length} bytes)");
+      
+      // Convert bytes to base64 for passing to JavaScript
+      final base64Data = base64Encode(bytes);
+      
+      // Load the VRM model in the WebView using base64 data
+      await _executeJavaScript('''
+        if (window.loadVRM) {
+          console.log("Loading VRM from base64 data: ${bytes.length} bytes");
+          
+          // Convert base64 to blob URL
+          const byteCharacters = atob('$base64Data');
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], {type: 'application/octet-stream'});
+          const blobUrl = URL.createObjectURL(blob);
+          
+          window.loadVRM(blobUrl);
+        } else {
+          console.error("loadVRM function not available");
+        }
+      ''');
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to load VRM model: $e");
+    }
+  }
+  
+  Future<void> _executeJavaScript(String script) async {
+    if (_useDesktopWebview && _desktopWebviewController != null) {
+      await _desktopWebviewController!.executeScript(script);
+    } else if (_webViewController != null) {
+      await _webViewController!.runJavaScript(script);
+    }
+  }
+  
+  // Expression control methods (matching chat_ui functionality)
+  Future<void> triggerBlink() async {
+    if (!_isWebViewReady) return;
+    await _executeJavaScript('window.triggerBlink();');
+  }
+  
+  Future<void> setExpression(String expressionName, double weight) async {
+    if (!_isWebViewReady) return;
+    await _executeJavaScript('window.setExpression("$expressionName", $weight);');
+  }
+  
+  Future<void> setEmotion(String emotion) async {
+    if (!_isWebViewReady) return;
+    await _executeJavaScript('window.setEmotion("$emotion");');
+  }
+  
+  Future<void> setLipSync(String phoneme) async {
+    if (!_isWebViewReady) return;
+    await _executeJavaScript('window.setLipSync("$phoneme");');
+  }
+  
+  Future<void> clearLipSync() async {
+    if (!_isWebViewReady) return;
+    await _executeJavaScript('window.clearLipSync();');
+  }
+  
+  Future<void> resetExpressions() async {
+    if (!_isWebViewReady) return;
+    await _executeJavaScript('window.resetExpressions();');
   }
   
   @override
@@ -279,7 +262,9 @@ class _VRMContainerState extends State<VRMContainer> {
     super.didUpdateWidget(oldWidget);
     if (widget.vrmModel != _currentVrmModel) {
       _currentVrmModel = widget.vrmModel;
-      _loadVRMModel();
+      if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
+        _loadVRMModel(_currentVrmModel!);
+      }
     }
   }
   
@@ -298,9 +283,187 @@ class _VRMContainerState extends State<VRMContainer> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: WebViewWidget(controller: _webViewController),
+        child: _buildContent(),
       ),
     );
+  }
+  
+  Widget _buildContent() {
+    if (!_isWebViewSupported) {
+      return _buildVRMFallback();
+    }
+    
+    // Desktop WebView (Windows)
+    if (_useDesktopWebview) {
+      if (_desktopWebviewController == null) {
+        return Container(
+          color: const Color(0xFF1e1e1e),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text(
+                  'Loading VRM Viewer...',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      
+      return Webview(_desktopWebviewController!);
+    }
+    
+    // Standard WebView (Mobile/Web)
+    if (_htmlPath == null || _webViewController == null) {
+      return Container(
+        color: const Color(0xFF1e1e1e),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Loading VRM Viewer...',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return WebViewWidget(controller: _webViewController!);
+  }
+  
+  Widget _buildVRMFallback() {
+    return Container(
+      color: const Color(0xFF1e1e1e),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // VRM model icon/preview
+            Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.purple.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: Colors.purple, width: 2),
+              ),
+              child: const Icon(
+                Icons.person,
+                size: 120,
+                color: Colors.purple,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Current persona/model info
+            Text(
+              _currentVrmModel != null ? 
+                _getPersonaNameFromModel(_currentVrmModel!) : 
+                'No Persona Selected',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _currentVrmModel ?? 'Select a persona to see their VRM model',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Simulation controls
+            const Text(
+              'VRM Expression Simulator',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Expression buttons
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildExpressionButton('😊', 'Happy', () => setEmotion('happy')),
+                _buildExpressionButton('😠', 'Angry', () => setEmotion('angry')),
+                _buildExpressionButton('😢', 'Sad', () => setEmotion('sad')),
+                _buildExpressionButton('😮', 'Surprised', () => setEmotion('surprised')),
+                _buildExpressionButton('😌', 'Relaxed', () => setEmotion('relaxed')),
+                _buildExpressionButton('😉', 'Blink', () => triggerBlink()),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Info text
+            const Text(
+              'VRM 3D viewer not available on this platform.\nUsing fallback persona display.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildExpressionButton(String emoji, String label, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: () {
+        onPressed();
+        print("🎭 [VRMContainer] Triggered $label expression (simulated)");
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.purple.withOpacity(0.3),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+  
+  String _getPersonaNameFromModel(String modelFilename) {
+    // Extract persona name from model filename
+    if (modelFilename.contains('fuka')) return 'Fuka';
+    if (modelFilename.contains('gwen')) return 'Gwen';
+    if (modelFilename.contains('kenji')) return 'Kenji';
+    if (modelFilename.contains('koan')) return 'Koan';
+    if (modelFilename.contains('nika')) return 'Nika';
+    return modelFilename.replaceAll('.vrm', '').replaceAll('_model', '');
   }
   
   @override
