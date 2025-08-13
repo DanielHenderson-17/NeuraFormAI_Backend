@@ -21,11 +21,11 @@ let lastBlinkTime = 0;
 
 function init() {
   console.log("Starting VRM viewer initialization...");
-  
+
   // Clear any existing canvases
-  const existingCanvases = document.querySelectorAll('canvas');
-  existingCanvases.forEach(canvas => canvas.remove());
-  
+  const existingCanvases = document.querySelectorAll("canvas");
+  existingCanvases.forEach((canvas) => canvas.remove());
+
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(
     45,
