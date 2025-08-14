@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../services/auth_service.dart';
 import '../services/persona_service.dart';
@@ -80,5 +81,52 @@ class ConversationManager {
       print("❌ [ConversationManager] Error deleting conversation: $e");
       return false;
     }
+  }
+  
+  static void showConversationMenu(
+    BuildContext context, 
+    Map<String, dynamic> conversation,
+    Function(Map<String, dynamic>) onRename,
+    Function(Map<String, dynamic>) onDelete,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2c2c2c),
+          title: Text(
+            conversation['title'] ?? 'Conversation',
+            style: const TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.white),
+                title: const Text(
+                  'Rename',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onRename(conversation);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onDelete(conversation);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

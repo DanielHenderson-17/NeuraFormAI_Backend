@@ -778,7 +778,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
-                        onTap: () => _showConversationMenu(context, conversation),
+                        onTap: () => ConversationManager.showConversationMenu(
+                          context, 
+                          conversation,
+                          _showRenameDialog,
+                          _showDeleteDialog,
+                        ),
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           child: Icon(
@@ -799,51 +804,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // Show conversation context menu (rename/delete)
-  void _showConversationMenu(BuildContext context, Map<String, dynamic> conversation) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF2c2c2c),
-          title: Text(
-            conversation['title'] ?? 'Conversation',
-            style: const TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.edit, color: Colors.white),
-                title: const Text(
-                  'Rename',
-                  style: TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showRenameDialog(context, conversation);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showDeleteDialog(context, conversation);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   // Show rename dialog
-  void _showRenameDialog(BuildContext context, Map<String, dynamic> conversation) {
+  void _showRenameDialog(Map<String, dynamic> conversation) {
     final controller = TextEditingController(text: conversation['title'] ?? '');
     
     showDialog(
@@ -888,7 +850,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // Show delete confirmation dialog
-  void _showDeleteDialog(BuildContext context, Map<String, dynamic> conversation) {
+  void _showDeleteDialog(Map<String, dynamic> conversation) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
