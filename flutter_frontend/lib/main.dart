@@ -10,6 +10,7 @@ import 'models/chat_message.dart';
 import 'services/auth_service.dart';
 import 'services/persona_service.dart';
 import 'services/voice_player.dart';
+import 'services/conversation_manager.dart';
 
 void main() {
   runApp(const MyApp());
@@ -162,19 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
   
   Future<void> _loadConversationHistory() async {
     try {
-      final historyData = await PersonaService.getConversationHistory();
-      final historyMessages = <ChatMessage>[];
-      
-      for (final msgData in historyData) {
-        final message = ChatMessage(
-          id: msgData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          content: msgData['content'] ?? '',
-          isUser: msgData['sender_type'] == 'user',
-          timestamp: DateTime.tryParse(msgData['created_at'] ?? '') ?? DateTime.now(),
-          personaName: _currentPersona?.name ?? 'AI',
-        );
-        historyMessages.add(message);
-      }
+      final historyMessages = await ConversationManager.getConversationHistoryMessages(_currentPersona?.name);
       
       setState(() {
         _messages.clear();
@@ -199,10 +188,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     
     try {
-      final userId = AuthService.userId;
-      if (userId == null) return;
-      
-      final response = await PersonaService.getConversations(userId);
+      final response = await ConversationManager.getConversationsList();
       
       setState(() {
         _conversations = response;
@@ -221,9 +207,9 @@ class _MyHomePageState extends State<MyHomePage> {
   
   Future<void> _renameConversation(String conversationId, String newTitle) async {
     try {
-      final success = await PersonaService.updateConversationTitle(conversationId, newTitle);
+      final success = await ConversationManager.renameConversation(conversationId, newTitle);
       
-              if (success) {
+      if (success) {
         // Update local conversation list
         setState(() {
           final index = _conversations.indexWhere((conv) => conv['id'] == conversationId);
@@ -241,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
   
   Future<void> _deleteConversation(String conversationId) async {
     try {
-      final success = await PersonaService.deleteConversation(conversationId);
+      final success = await ConversationManager.deleteConversation(conversationId);
       
       if (success) {
         // Remove from local conversation list
