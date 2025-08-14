@@ -697,114 +697,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // Build conversation list for left column
   Widget _buildConversationList() {
-    if (_isLoadingConversations) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Colors.grey,
-          strokeWidth: 2,
-        ),
-      );
-    }
-    
-    if (_conversations.isEmpty) {
-      return const Center(
-        child: Text(
-          'No conversations yet',
-          style: TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
-          ),
-        ),
-      );
-    }
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: _conversations.length,
-      itemBuilder: (context, index) {
-        final conversation = _conversations[index];
-        final isActive = conversation['id'] == _activeConversationId;
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 4),
-                    decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF3a3a3a) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () async {
-                // Switch to this conversation and its corresponding persona
-                final personaName = conversation['persona_name'];
-                if (personaName != null) {
-                  await _selectPersona(personaName);
-                  print("📂 [Main] Switched to conversation: ${conversation['title']} (Persona: $personaName)");
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    // Conversation info
-                    Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            conversation['title'] ?? 'Untitled Chat',
-                            style: const TextStyle(
-                              color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                        ),
-                          const SizedBox(height: 2),
-                        Text(
-                            conversation['persona_name'] ?? 'Unknown',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Three dots menu
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () => ConversationManager.showConversationMenu(
-                          context, 
-                          conversation,
-                          (String conversationId, String newTitle) => _renameConversation(conversationId, newTitle),
-                          (String conversationId) => _deleteConversation(conversationId),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Colors.grey.shade400,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
+    return ConversationManager.buildConversationList(
+      conversations: _conversations,
+      activeConversationId: _activeConversationId,
+      isLoadingConversations: _isLoadingConversations,
+      onConversationSelected: (personaName) async {
+        await _selectPersona(personaName);
       },
+      onRename: _renameConversation,
+      onDelete: _deleteConversation,
+      context: context,
     );
-  }
-  
-  @override
+  }  @override
   Widget build(BuildContext context) {
     // Show loading while checking auth status
     if (_isCheckingAuth) {
