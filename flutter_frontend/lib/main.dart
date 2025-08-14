@@ -7,6 +7,7 @@ import 'widgets/user_menu_widget.dart';
 import 'widgets/voice_toggle_switch.dart';
 import 'widgets/chat_input_widget.dart';
 import 'widgets/persona_selection_dialog.dart';
+import 'widgets/login_screen.dart';
 import 'models/persona.dart';
 import 'models/chat_message.dart';
 import 'services/auth_service.dart';
@@ -459,7 +460,7 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
     );
   }  @override
-  
+
   Widget build(BuildContext context) {
     // Show loading while checking auth status
     if (_isCheckingAuth) {
@@ -472,7 +473,15 @@ class _MyHomePageState extends State<MyHomePage> {
     
     // If not signed in, show ONLY login screen
     if (!_isSignedIn) {
-      return _buildLoginScreen();
+      return LoginScreen(
+        onSignInSuccess: () async {
+          setState(() {
+            _isSignedIn = true;
+          });
+          await _loadInitialPersona();
+        },
+        onShowError: _showErrorDialog,
+      );
     }
     
     // If signed in, show main app
@@ -678,87 +687,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ],
     ),
-      ),
-    );
-  }
-
-  // Build fullscreen login screen
-  Widget _buildLoginScreen() {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // App logo/title
-              Icon(
-                Icons.psychology,
-                size: 80,
-                color: Colors.blue.shade600,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'NeuraFormAI',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Sign in to continue',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 48),
-              
-              // Google Sign-In Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    try {
-                      final success = await AuthService.signInWithGoogle();
-                      if (success) {
-                        // Update auth state and load initial persona
-                        setState(() {
-                          _isSignedIn = true;
-                        });
-                        await _loadInitialPersona();
-                      } else {
-                        _showErrorDialog('Sign-in failed. Please try again.');
-                      }
-                    } catch (e) {
-                      _showErrorDialog('Sign-in error: $e');
-                    }
-                  },
-                  icon: const Icon(Icons.login, color: Colors.white),
-                  label: const Text(
-                    'Sign in with Google',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade600,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
