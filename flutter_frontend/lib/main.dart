@@ -5,6 +5,7 @@ import 'widgets/chat_window.dart';
 import 'widgets/vrm_container.dart';
 import 'widgets/user_menu_widget.dart';
 import 'widgets/voice_toggle_switch.dart';
+import 'widgets/chat_input_widget.dart';
 import 'models/persona.dart';
 import 'models/chat_message.dart';
 import 'services/auth_service.dart';
@@ -418,176 +419,28 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // Build chat input for center column (extracted from ChatWindow)
   Widget _buildChatInput() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      color: Colors.transparent,
-            child: Column(
-        mainAxisSize: MainAxisSize.min,
-              children: [
-          // Voice toggle switch (top right) - matches Python frontend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-                Container(
-                margin: const EdgeInsets.only(bottom: 8, right: 6),
-                child: VoiceToggleSwitch(
-                  initialValue: _isVoiceEnabled,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _isVoiceEnabled = value;
-                    });
-                    print("🎤 Voice toggle: ${value ? 'enabled' : 'disabled'}");
-                  },
-                        ),
-                      ),
-                    ],
-          ),
-          
-          // Chat input bubble
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(
-                minHeight: 50,
-                maxHeight: 140,
-              ),
-                  decoration: BoxDecoration(
-                color: const Color(0xFF333333),
-                    borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                  // Text input area
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.fromLTRB(6, 8, 6, 4),
-                      child: TextField(
-                        controller: _centerInputController,
-                        focusNode: _centerInputFocusNode,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: _isLoading ? 'AI is typing...' : 'Start typing...',
-                          hintStyle: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                        ),
-                        maxLines: null,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (value) {
-                          if (!_isLoading) _sendMessage();
-                        },
-                      ),
-                    ),
-                  ),
-                  
-                  // Bottom button row
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(6, 0, 6, 6),
-                  child: Row(
-                    children: [
-                        // Left side buttons (future expansion)
-                        const Expanded(child: SizedBox()),
-                        
-                        // Right side buttons
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Chat toggle button
-                            Container(
-                              width: 30,
-                              height: 30,
-                              margin: const EdgeInsets.only(right: 6),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(6),
-                                  onTap: () {
-                                    setState(() {
-                                      _isChatWindowVisible = !_isChatWindowVisible;
-                                    });
-                                    print("🔄 Chat toggle pressed - ${_isChatWindowVisible ? 'shown' : 'hidden'}");
-                                  },
-                                                                      child: Container(
-                                    decoration: BoxDecoration(
-                                      color: _isChatWindowVisible ? Colors.grey.withOpacity(0.3) : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(
-                                      _isChatWindowVisible ? Icons.chat_bubble : Icons.chat_bubble_outline,
-                                      color: _isChatWindowVisible ? Colors.blue : Colors.white,
-                                      size: 18,
-                          ),
-                        ),
-                      ),
-                              ),
-                            ),
-                            
-                            // Microphone button
-                            Container(
-                              width: 30,
-                              height: 30,
-                              margin: const EdgeInsets.only(right: 6),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(6),
-                                  onTap: () {
-                                    print("🎤 Microphone pressed");
-                                  },
-                                  child: Container(
-                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Icon(
-                                      Icons.mic,
-                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            
-                                                          // Send button
-                              Container(
-                                width: 32,
-                                height: 32,
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(6),
-                                    onTap: _isLoading ? null : _sendMessage,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(
-                                      Icons.arrow_upward_rounded,
-                                      color: _isLoading ? Colors.grey : Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                      ],
-                    ),
-                  ),
-              ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ChatInputWidget(
+      controller: _centerInputController,
+      focusNode: _centerInputFocusNode,
+      isLoading: _isLoading,
+      isVoiceEnabled: _isVoiceEnabled,
+      isChatWindowVisible: _isChatWindowVisible,
+      onSendMessage: _sendMessage,
+      onVoiceToggle: (bool value) {
+        setState(() {
+          _isVoiceEnabled = value;
+        });
+        print("🎤 Voice toggle: ${value ? 'enabled' : 'disabled'}");
+      },
+      onChatToggle: () {
+        setState(() {
+          _isChatWindowVisible = !_isChatWindowVisible;
+        });
+        print("🔄 Chat toggle pressed - ${_isChatWindowVisible ? 'shown' : 'hidden'}");
+      },
+      onMicrophonePressed: () {
+        print("🎤 Microphone pressed");
+      },
     );
   }
 
