@@ -11,6 +11,7 @@ import 'services/auth_service.dart';
 import 'services/persona_service.dart';
 import 'services/voice_player.dart';
 import 'services/conversation_manager.dart';
+import 'services/chat_manager.dart';
 
 void main() {
   runApp(const MyApp());
@@ -334,7 +335,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
   
-  // Messaging functionality extracted from ChatWindow
+  // Messaging functionality using ChatManager
   Future<void> _sendMessage() async {
     final message = _centerInputController.text.trim();
     if (message.isEmpty || _isLoading) return;
@@ -346,173 +347,68 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() => _isLoading = true);
     
     try {
-      // Check for persona switching commands (switch to / swap to)
+      // Check for persona switching commands first
       final switchMatch = RegExp(r'^(?:switch|swap)\s+to\s+(.+)$', caseSensitive: false).firstMatch(message);
       if (switchMatch != null) {
         final personaName = switchMatch.group(1)?.trim();
         if (personaName != null && personaName.isNotEmpty) {
           print("🔄 [Main] Typed command detected — switching to persona: $personaName");
           
-          // Don't add the command to chat history - it's a system command
+          // Handle persona switching (this involves complex state management)
+          final hadExistingConversation = _activeConversationId != null;
+          await _selectPersona(personaName);
           
-          try {
-            // Switch to the persona and load their conversation immediately
-            final hadExistingConversation = _activeConversationId != null;
-            await _selectPersona(personaName);
-            
-            // Only send welcome/intro messages if this is the first switch and conversation has history
-            if (_activeConversationId != null && !hadExistingConversation && _messages.isNotEmpty) {
-              // Existing conversation - send welcome back message (hidden from history)
-              print("🔄 [Main] Found existing conversation with ${_messages.length} messages - sending welcome back");
-              final response = await PersonaService.fetchReply(
-                "The user just returned to continue our conversation. Give them a brief, personalized welcome back message that fits your personality.", 
-                voiceEnabled: _isVoiceEnabled,
-                saveToHistory: false
-              );
-              
-              final aiMessage = ChatMessage(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                content: response,
-                isUser: false,
-                timestamp: DateTime.now(),
-                personaName: _currentPersona?.name ?? 'AI',
-              );
-              
-              setState(() => _messages.add(aiMessage));
-              _scrollChatToBottom(); // Auto-scroll to new message
-              
-              // Play voice if enabled for welcome back
-              if (_isVoiceEnabled) {
-                print("🎤 Voice enabled - starting TTS playback for welcome back");
-                VoicePlayer.playReplyFromBackend(response, voiceEnabled: true, onStart: (audioDuration) {
-                  // Start voice-synchronized lip sync
-                  if (audioDuration != null) {
-                    final vrmState = _vrmContainerKey.currentState as dynamic;
-                    vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
-                  }
-                });
-              } else {
-                // Voice disabled - just do text-based lip sync for welcome back with EXACT Python timing
-                final vrmState = _vrmContainerKey.currentState as dynamic;
-                vrmState?.startTextLipSync(response, durationPerWord: 0.08); // EXACT Python value
+          // Use ChatManager for welcome/intro messages after persona switch
+          final result = await ChatManager.handlePersonaSwitch(
+            personaName: personaName,
+            currentPersona: _currentPersona,
+            voiceEnabled: _isVoiceEnabled,
+            activeConversationId: _activeConversationId,
+            currentMessages: _messages,
+            onVrmLipSync: (response, audioDuration, {double? durationPerWord}) {
+              final vrmState = _vrmContainerKey.currentState as dynamic;
+              if (audioDuration != null) {
+                vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
+              } else if (durationPerWord != null) {
+                vrmState?.startTextLipSync(response, durationPerWord: durationPerWord);
               }
-            } else if (_activeConversationId == null && _messages.isEmpty) {
-              // New conversation - send introduction (hidden from history)
-              print("🔄 [Main] No existing conversation - sending introduction");
-              final response = await PersonaService.fetchReply(
-                "Introduce yourself briefly as the new persona.", 
-                voiceEnabled: _isVoiceEnabled,
-                saveToHistory: false
-              );
-              
-              final aiMessage = ChatMessage(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                content: response,
-                isUser: false,
-                timestamp: DateTime.now(),
-                personaName: _currentPersona?.name ?? 'AI',
-              );
-              
-              setState(() => _messages.add(aiMessage));
-              _scrollChatToBottom(); // Auto-scroll to new message
-              
-              // Play voice if enabled for persona introduction
-              if (_isVoiceEnabled) {
-                print("🎤 Voice enabled - starting TTS playback for persona introduction");
-                VoicePlayer.playReplyFromBackend(response, voiceEnabled: true, onStart: (audioDuration) {
-                  // Start voice-synchronized lip sync
-                  if (audioDuration != null) {
-                    final vrmState = _vrmContainerKey.currentState as dynamic;
-                    vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
-                  }
-                });
-              } else {
-                // Voice disabled - just do text-based lip sync for persona introduction with EXACT Python timing
-                final vrmState = _vrmContainerKey.currentState as dynamic;
-                vrmState?.startTextLipSync(response, durationPerWord: 0.08); // EXACT Python value
-              }
-            } else {
-              print("🔄 [Main] Switched to persona ${personaName} - no welcome message needed (${_messages.length} messages loaded)");
-            }
-            
-          } catch (e) {
-            print("❌ [Main] Error during persona switch: $e");
-            final errorMessage = ChatMessage(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              content: "Sorry, I couldn't switch to that persona. Please try again.",
-              isUser: false,
-              timestamp: DateTime.now(),
-            );
-            setState(() => _messages.add(errorMessage));
-            _scrollChatToBottom(); // Auto-scroll to new message
+            },
+          );
+          
+          if (result.newMessages.isNotEmpty) {
+            setState(() => _messages.addAll(result.newMessages));
+            _scrollChatToBottom();
           }
         }
       } else {
-        // Regular message
-        final userMessage = ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          content: message,
-          isUser: true,
-          timestamp: DateTime.now(),
+        // Regular message - use ChatManager
+        final result = await ChatManager.processMessage(
+          message: message,
+          currentPersona: _currentPersona,
+          voiceEnabled: _isVoiceEnabled,
+          activeConversationId: _activeConversationId,
+          onVrmLipSync: (response, audioDuration, {double? durationPerWord}) {
+            final vrmState = _vrmContainerKey.currentState as dynamic;
+            if (audioDuration != null) {
+              vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
+            } else if (durationPerWord != null) {
+              vrmState?.startTextLipSync(response, durationPerWord: durationPerWord);
+            }
+          },
         );
         
-        setState(() => _messages.add(userMessage));
-        _scrollChatToBottom(); // Auto-scroll to new message
+        // Update UI state based on result
+        if (result.newMessages.isNotEmpty) {
+          setState(() => _messages.addAll(result.newMessages));
+          _scrollChatToBottom();
+        }
         
-        try {
-          final response = await PersonaService.fetchReply(message, voiceEnabled: _isVoiceEnabled);
-          
-          final aiMessage = ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            content: response,
-            isUser: false,
-            timestamp: DateTime.now(),
-            personaName: _currentPersona?.name ?? 'AI',
-          );
-          
-          setState(() => _messages.add(aiMessage));
-          _scrollChatToBottom(); // Auto-scroll to new message
-          
-          // Refresh conversation list to show new/updated conversation
+        if (result.conversationId != null) {
+          setState(() => _activeConversationId = result.conversationId);
+        }
+        
+        if (result.shouldReloadConversations) {
           await _loadConversations();
-          
-          // Update active conversation ID if it wasn't set (new conversation)
-          if (_activeConversationId == null && _currentPersona != null) {
-            final userId = AuthService.userId;
-            if (userId != null) {
-              final conversationId = await PersonaService.getConversationForPersona(userId, _currentPersona!.name);
-    setState(() {
-                _activeConversationId = conversationId;
-              });
-            }
-          }
-          
-          // Play voice if enabled (matches Python frontend behavior)
-          if (_isVoiceEnabled) {
-            print("🎤 Voice enabled - starting TTS playback");
-            VoicePlayer.playReplyFromBackend(response, voiceEnabled: true, onStart: (audioDuration) {
-              // Start voice-synchronized lip sync
-              if (audioDuration != null) {
-                final vrmState = _vrmContainerKey.currentState as dynamic;
-                vrmState?.startVoiceLipSync(response, audioDuration: audioDuration);
-              }
-            });
-          } else {
-            // Voice disabled - just do text-based lip sync with EXACT Python timing
-            final vrmState = _vrmContainerKey.currentState as dynamic;
-            vrmState?.startTextLipSync(response, durationPerWord: 0.08); // EXACT Python value
-          }
-          
-        } catch (e) {
-          print("❌ [Main] Error sending message: $e");
-          final errorMessage = ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            content: "Sorry, I couldn't process your message. Please try again.",
-            isUser: false,
-            timestamp: DateTime.now(),
-          );
-          setState(() => _messages.add(errorMessage));
-          _scrollChatToBottom(); // Auto-scroll to new message
         }
       }
     } finally {
