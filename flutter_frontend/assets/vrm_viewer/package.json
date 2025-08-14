@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "build": "rollup -c",
+    "build-test": "rollup -c rollup.config.test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.2",
+    "@pixiv/three-vrm-animation": "^3.4.2",
     "three": "^0.179.0"
   }
 }
