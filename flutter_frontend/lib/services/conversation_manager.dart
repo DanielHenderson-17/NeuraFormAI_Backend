@@ -86,8 +86,8 @@ class ConversationManager {
   static void showConversationMenu(
     BuildContext context, 
     Map<String, dynamic> conversation,
-    Function(Map<String, dynamic>) onRename,
-    Function(Map<String, dynamic>) onDelete,
+    Function(String, String) onRename,
+    Function(String) onDelete,
   ) {
     showDialog(
       context: context,
@@ -109,7 +109,7 @@ class ConversationManager {
                 ),
                 onTap: () {
                   Navigator.of(context).pop();
-                  onRename(conversation);
+                  showRenameDialog(context, conversation, onRename);
                 },
               ),
               ListTile(
@@ -120,11 +120,96 @@ class ConversationManager {
                 ),
                 onTap: () {
                   Navigator.of(context).pop();
-                  onDelete(conversation);
+                  showDeleteDialog(context, conversation, onDelete);
                 },
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+  
+  static void showRenameDialog(
+    BuildContext context,
+    Map<String, dynamic> conversation,
+    Function(String, String) onRename,
+  ) {
+    final controller = TextEditingController(text: conversation['title'] ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2c2c2c),
+          title: const Text(
+            'Rename Conversation',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Enter new title',
+              hintStyle: TextStyle(color: Colors.grey),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.blue),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onRename(conversation['id'], controller.text.trim());
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  static void showDeleteDialog(
+    BuildContext context,
+    Map<String, dynamic> conversation,
+    Function(String) onDelete,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2c2c2c),
+          title: const Text(
+            'Delete Conversation',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Are you sure you want to delete "${conversation['title']}"? This action cannot be undone.',
+            style: const TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onDelete(conversation['id']);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
         );
       },
     );

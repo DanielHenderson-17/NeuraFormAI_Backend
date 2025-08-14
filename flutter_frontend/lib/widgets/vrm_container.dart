@@ -34,6 +34,7 @@ class _VRMContainerState extends State<VRMContainer> {
   bool _isWebViewReady = false;
   bool _isWebViewSupported = true;
   bool _useDesktopWebview = false;
+  bool _isLoadingVRM = false;
   String? _currentVrmModel;
   String? _htmlPath;
   String? _errorMessage;
@@ -191,8 +192,33 @@ class _VRMContainerState extends State<VRMContainer> {
     }
   }
   
-  Future<void> _loadVRMModel(String vrmModel) async {
+  Future<void> _clearExistingVRM() async {
     if (!_isWebViewReady) return;
+    
+    try {
+      print("🧹 [VRMContainer] Clearing existing VRM model");
+      
+      await _executeJavaScript('''
+        if (window.vrm) {
+          console.log("Clearing existing VRM model");
+          if (window.VRMUtils && window.vrm.scene) {
+            window.VRMUtils.deepDispose(window.vrm.scene);
+          }
+          if (window.scene && window.vrm.scene) {
+            window.scene.remove(window.vrm.scene);
+          }
+          window.vrm = null;
+        }
+      ''');
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to clear existing VRM: $e");
+    }
+  }
+  
+  Future<void> _loadVRMModel(String vrmModel) async {
+    if (!_isWebViewReady || _isLoadingVRM) return;
+    
+    _isLoadingVRM = true;
     
     try {
       // Get the VRM file from assets
@@ -226,6 +252,8 @@ class _VRMContainerState extends State<VRMContainer> {
       ''');
     } catch (e) {
       print("❌ [VRMContainer] Failed to load VRM model: $e");
+    } finally {
+      _isLoadingVRM = false;
     }
   }
   
@@ -314,7 +342,13 @@ class _VRMContainerState extends State<VRMContainer> {
     if (widget.vrmModel != _currentVrmModel) {
       _currentVrmModel = widget.vrmModel;
       if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
-        _loadVRMModel(_currentVrmModel!);
+        // First clear any existing VRM, then load the new one
+        _clearExistingVRM().then((_) {
+          _loadVRMModel(_currentVrmModel!);
+        });
+      } else {
+        // If no VRM model specified, just clear existing
+        _clearExistingVRM();
       }
     }
   }
