@@ -67,7 +67,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/legacy/
+    - assets/animations/
     - assets/vrm_models/
     - assets/vrm_viewer/
 
