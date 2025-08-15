@@ -651,28 +651,9 @@ window.playAnimationByName = async function (animationName) {
     );
     console.log("🎬 [DEBUG] Animation name requested:", animationName);
 
-    const animationMap = {
-      peace: "assets/animations/peace.vrma",
-      greeting: "assets/animations/greeting.vrma",
-      pose: "assets/animations/pose.vrma",
-      squat: "assets/animations/squat.vrma",
-      spin: "assets/animations/spin.vrma",
-      shoot: "assets/animations/shoot.vrma",
-      full: "assets/animations/full.vrma",
-    };
-
-    console.log("🎬 [DEBUG] Available animations:", Object.keys(animationMap));
-    const animationPath = animationMap[animationName.toLowerCase()];
-    console.log("🎬 [DEBUG] Mapped animation path:", animationPath);
-
-    if (!animationPath) {
-      console.warn(`🎬 [DEBUG] Unknown animation: ${animationName}`);
-      console.log(
-        "🎬 [DEBUG] Available animations are:",
-        Object.keys(animationMap).join(", ")
-      );
-      return false;
-    }
+    // Construct the animation path dynamically - no more hardcoded mapping!
+    const animationPath = `assets/animations/${animationName}.vrma`;
+    console.log("🎬 [DEBUG] Constructed animation path:", animationPath);
 
     console.log(
       `🎬 [DEBUG] Playing animation: ${animationName} from ${animationPath}`

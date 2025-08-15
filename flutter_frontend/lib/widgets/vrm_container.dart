@@ -38,6 +38,8 @@ class _VRMContainerState extends State<VRMContainer> {
   String? _currentVrmModel;
   String? _htmlPath;
   String? _errorMessage;
+  List<Map<String, String>> _availableAnimations = [];
+  bool _animationsDiscovered = false;
   
   @override
   void initState() {
@@ -185,6 +187,9 @@ class _VRMContainerState extends State<VRMContainer> {
         }, 1000);
       }
     ''');
+    
+    // Discover available animations
+    await _discoverAvailableAnimations();
     
     // Load VRM model if one is specified
     if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
@@ -348,6 +353,90 @@ class _VRMContainerState extends State<VRMContainer> {
       await _expressionManager!.stopLipSync();
     } else {
       await clearLipSync();
+    }
+  }
+
+  // Discover available animations dynamically
+  Future<void> _discoverAvailableAnimations() async {
+    if (_animationsDiscovered) return;
+    
+    try {
+      print("🔍 [VRMContainer] Discovering available animations...");
+      
+      // Get list of animation files from assets/animations/
+      final manifestContent = await rootBundle.loadString('AssetManifest.json');
+      final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+      
+      final List<Map<String, String>> animations = [];
+      
+      // Filter for .vrma files in assets/animations/ (excluding subdirectories like 'old')
+      for (String key in manifestMap.keys) {
+        if (key.startsWith('assets/animations/') && 
+            key.endsWith('.vrma') && 
+            !key.contains('/old/') &&  // Exclude 'old' folder
+            key.split('/').length == 3) {  // Only direct files, not in subdirectories
+          
+          final fileName = key.split('/').last;
+          final animationName = fileName.replaceAll('.vrma', '');
+          
+          // Create a display name (capitalize first letter)
+          final displayName = animationName[0].toUpperCase() + animationName.substring(1);
+          
+          // Simple emoji mapping for known animations, or use a default
+          String emoji = '🎭'; // Default emoji
+          switch (animationName.toLowerCase()) {
+            case 'peace':
+              emoji = '✌️';
+              break;
+            case 'greeting':
+              emoji = '👋';
+              break;
+            case 'pose':
+              emoji = '🤸';
+              break;
+            case 'squat':
+              emoji = '🏃';
+              break;
+            case 'spin':
+              emoji = '🌀';
+              break;
+            case 'shoot':
+              emoji = '🔫';
+              break;
+            case 'full':
+              emoji = '💫';
+              break;
+            default:
+              emoji = '🎭';
+          }
+          
+          animations.add({
+            'name': animationName,
+            'displayName': displayName,
+            'emoji': emoji,
+            'path': key,
+          });
+          
+          print("🔍 [VRMContainer] Found animation: $animationName ($displayName) at $key");
+        }
+      }
+      
+      setState(() {
+        _availableAnimations = animations;
+        _animationsDiscovered = true;
+      });
+      
+      print("🔍 [VRMContainer] Discovered ${animations.length} animations");
+      for (var anim in animations) {
+        print("   - ${anim['emoji']} ${anim['displayName']} (${anim['name']})");
+      }
+      
+    } catch (e) {
+      print("❌ [VRMContainer] Failed to discover animations: $e");
+      setState(() {
+        _availableAnimations = [];
+        _animationsDiscovered = true;
+      });
     }
   }
 
@@ -640,13 +729,23 @@ class _VRMContainerState extends State<VRMContainer> {
               spacing: 4,
               runSpacing: 4,
               children: [
-                _buildSmallAnimationButton('✌️', 'Peace', () => playAnimation('peace')),
-                _buildSmallAnimationButton('👋', 'Greeting', () => playAnimation('greeting')),
-                _buildSmallAnimationButton('🤸', 'Pose', () => playAnimation('pose')),
-                _buildSmallAnimationButton('🏃', 'Squat', () => playAnimation('squat')),
-                _buildSmallAnimationButton('🌀', 'Spin', () => playAnimation('spin')),
-                _buildSmallAnimationButton('🔫', 'Shoot', () => playAnimation('shoot')),
-                _buildSmallAnimationButton('💫', 'Full', () => playAnimation('full')),
+                // Show loading indicator if animations are still being discovered
+                if (!_animationsDiscovered)
+                  _buildSmallAnimationButton('⏳', 'Loading...', () {})
+                else ...[
+                  // Dynamic animation buttons
+                  ..._availableAnimations.map((anim) =>
+                    _buildSmallAnimationButton(
+                      anim['emoji']!,
+                      anim['displayName']!,
+                      () => playAnimation(anim['name']!)
+                    )
+                  ).toList(),
+                  // Show message if no animations found
+                  if (_availableAnimations.isEmpty)
+                    _buildSmallAnimationButton('❌', 'No Anims', () {}),
+                ],
+                // Stop button
                 _buildSmallAnimationButton('⏹️', 'Stop', () => stopAnimation()),
               ],
             ),
@@ -746,13 +845,23 @@ class _VRMContainerState extends State<VRMContainer> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildAnimationButton('✌️', 'Peace', () => playAnimation('peace')),
-                _buildAnimationButton('👋', 'Greeting', () => playAnimation('greeting')),
-                _buildAnimationButton('🤸', 'Pose', () => playAnimation('pose')),
-                _buildAnimationButton('🏃', 'Squat', () => playAnimation('squat')),
-                _buildAnimationButton('🌀', 'Spin', () => playAnimation('spin')),
-                _buildAnimationButton('🔫', 'Shoot', () => playAnimation('shoot')),
-                _buildAnimationButton('💫', 'Full', () => playAnimation('full')),
+                // Show loading indicator if animations are still being discovered
+                if (!_animationsDiscovered)
+                  _buildAnimationButton('⏳', 'Loading Animations...', () {})
+                else ...[
+                  // Dynamic animation buttons
+                  ..._availableAnimations.map((anim) =>
+                    _buildAnimationButton(
+                      anim['emoji']!,
+                      anim['displayName']!,
+                      () => playAnimation(anim['name']!)
+                    )
+                  ).toList(),
+                  // Show message if no animations found
+                  if (_availableAnimations.isEmpty)
+                    _buildAnimationButton('❌', 'No Animations Found', () {}),
+                ],
+                // Stop button
                 _buildAnimationButton('⏹️', 'Stop', () => stopAnimation()),
               ],
             ),
