@@ -72,6 +72,16 @@ class VRMModelLoader {
       final currentModel = _getCurrentVrmModel?.call();
       if (currentModel != null && currentModel.isNotEmpty) {
         await loadVRMModel(currentModel);
+      } else {
+        // Even without a specific VRM model, try to play idle animation
+        // (useful if a default VRM is loaded via HTML/JavaScript)
+        print("🎭 [VRMModelLoader] No specific VRM model, attempting to auto-play idle animation");
+        await Future.delayed(const Duration(milliseconds: 1000)); // Give time for any default VRM to load
+        await VRMLogic.playAnimation(
+          animationName: 'idle',
+          executeJavaScript: _executeJavaScript!,
+          isWebViewReady: _isWebViewReady?.call() ?? false,
+        );
       }
     } catch (e) {
       print("❌ [VRMModelLoader] Error in checkAndLoadVRM: $e");
@@ -131,11 +141,74 @@ class VRMModelLoader {
         }
       ''');
       
+      // Wait a moment for VRM to load, then ensure mixer is initialized
+      print("⏳ [VRMModelLoader] Waiting for VRM to load and initializing mixer...");
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Ensure mixer is initialized
+      await _executeJavaScript!('''
+        if (window.vrm && !window.mixer) {
+          console.log("Initializing animation mixer for VRM");
+          window.mixer = new THREE.AnimationMixer(window.vrm.scene);
+          console.log("Animation mixer initialized");
+        }
+      ''');
+      
+      // Wait another moment for mixer to be ready
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // Auto-play idle animation after VRM model loads
+      print("🎭 [VRMModelLoader] Auto-playing idle animation");
+      await VRMLogic.playAnimation(
+        animationName: 'idle',
+        executeJavaScript: _executeJavaScript!,
+        isWebViewReady: _isWebViewReady?.call() ?? false,
+      );
+      
     } catch (e) {
       print("❌ [VRMModelLoader] Failed to load VRM model: $e");
     } finally {
       _setLoadingVRM?.call(false);
     }
+  }
+  
+  /// Wait for VRM to be fully loaded in the JavaScript environment
+  Future<void> _waitForVRMLoaded() async {
+    if (_executeJavaScript == null) return;
+    
+    // Poll for VRM loading completion with timeout
+    const maxAttempts = 20; // 10 seconds max wait (500ms * 20)
+    int attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        final result = await _executeJavaScript!('''
+          (function() {
+            var vrmLoaded = !!window.vrm;
+            var mixerExists = !!window.mixer;
+            var ready = vrmLoaded && mixerExists;
+            return "vrmLoaded:" + vrmLoaded + ",mixerExists:" + mixerExists + ",ready:" + ready;
+          })();
+        ''');
+        
+        // Parse the result to check if VRM is loaded
+        if (result.contains('vrmLoaded:true') && result.contains('mixerExists:true')) {
+          print("✅ [VRMModelLoader] VRM fully loaded and ready for animations");
+          return;
+        }
+        
+        print("⏳ [VRMModelLoader] VRM loading... attempt ${attempts + 1}/$maxAttempts");
+        await Future.delayed(const Duration(milliseconds: 500));
+        attempts++;
+        
+      } catch (e) {
+        print("⚠️ [VRMModelLoader] Error checking VRM load status: $e");
+        await Future.delayed(const Duration(milliseconds: 500));
+        attempts++;
+      }
+    }
+    
+    print("⚠️ [VRMModelLoader] Timeout waiting for VRM to load, proceeding anyway");
   }
   
   /// Clean up resources
