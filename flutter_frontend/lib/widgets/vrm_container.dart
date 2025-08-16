@@ -8,6 +8,7 @@ import 'package:webview_windows/webview_windows.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
 import 'vrm_animation_controls.dart';
+import 'vrm_fallback.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -638,7 +639,15 @@ class _VRMContainerState extends State<VRMContainer> {
   
   Widget _buildContent() {
     if (!_isWebViewSupported) {
-      return _buildVRMFallback();
+      return VRMFallback(
+        currentVrmModel: _currentVrmModel,
+        availableAnimations: _availableAnimations,
+        animationsDiscovered: _animationsDiscovered,
+        onPlayAnimation: (name) => playAnimation(name),
+        onStopAnimation: () => stopAnimation(),
+        onSetEmotion: (emotion) => setEmotion(emotion),
+        onBlink: () => triggerBlink(),
+      );
     }
     
     // Desktop WebView (Windows)
@@ -711,177 +720,6 @@ class _VRMContainerState extends State<VRMContainer> {
           onStopAnimation: () => stopAnimation(),
         ),
       ],
-    );
-  }
-  
-  Widget _buildVRMFallback() {
-    return Container(
-      color: const Color(0xFF1e1e1e),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // VRM model icon/preview
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: Colors.purple, width: 2),
-              ),
-              child: const Icon(
-                Icons.person,
-                size: 120,
-                color: Colors.purple,
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Current persona/model info
-            Text(
-              _currentVrmModel != null ? 
-                _getPersonaNameFromModel(_currentVrmModel!) : 
-                'No Persona Selected',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _currentVrmModel ?? 'Select a persona to see their VRM model',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // Animation controls
-            const Text(
-              'VRM Animation Controls',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Animation buttons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                // Show loading indicator if animations are still being discovered
-                if (!_animationsDiscovered)
-                  _buildAnimationButton('⏳', 'Loading Animations...', () {})
-                else ...[
-                  // Dynamic animation buttons
-                  ..._availableAnimations.map((anim) =>
-                    _buildAnimationButton(
-                      anim['emoji']!,
-                      anim['displayName']!,
-                      () => playAnimation(anim['name']!)
-                    )
-                  ).toList(),
-                  // Show message if no animations found
-                  if (_availableAnimations.isEmpty)
-                    _buildAnimationButton('❌', 'No Animations Found', () {}),
-                ],
-                // Stop button
-                _buildAnimationButton('⏹️', 'Stop', () => stopAnimation()),
-              ],
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Simulation controls
-            const Text(
-              'VRM Expression Simulator',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Expression buttons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildExpressionButton('😊', 'Happy', () => setEmotion('happy')),
-                _buildExpressionButton('😠', 'Angry', () => setEmotion('angry')),
-                _buildExpressionButton('😢', 'Sad', () => setEmotion('sad')),
-                _buildExpressionButton('😮', 'Surprised', () => setEmotion('surprised')),
-                _buildExpressionButton('😌', 'Relaxed', () => setEmotion('relaxed')),
-                _buildExpressionButton('😉', 'Blink', () => triggerBlink()),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Info text
-            const Text(
-              'VRM 3D viewer not available on this platform.\nUsing fallback persona display.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildExpressionButton(String emoji, String label, VoidCallback onPressed) {
-    return ElevatedButton(
-      onPressed: () {
-        onPressed();
-        print("🎭 [VRMContainer] Triggered $label expression (simulated)");
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.purple.withOpacity(0.3),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnimationButton(String emoji, String label, VoidCallback onPressed) {
-    return ElevatedButton(
-      onPressed: () {
-        onPressed();
-        print("🎬 [VRMContainer] Triggered $label animation");
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue.withOpacity(0.3),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
     );
   }
   
