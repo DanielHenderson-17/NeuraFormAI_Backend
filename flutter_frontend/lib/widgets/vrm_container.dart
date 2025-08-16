@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
+import '../helpers/vrm_helpers.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -721,16 +722,6 @@ class _VRMContainerState extends State<VRMContainer> {
         ),
       ],
     );
-  }
-  
-  String _getPersonaNameFromModel(String modelFilename) {
-    // Extract persona name from model filename
-    if (modelFilename.contains('fuka')) return 'Fuka';
-    if (modelFilename.contains('gwen')) return 'Gwen';
-    if (modelFilename.contains('kenji')) return 'Kenji';
-    if (modelFilename.contains('koan')) return 'Koan';
-    if (modelFilename.contains('nika')) return 'Nika';
-    return modelFilename.replaceAll('.vrm', '').replaceAll('_model', '');
   }
   
   @override
