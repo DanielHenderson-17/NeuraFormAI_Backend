@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
+import '../services/vrm_model_loader.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
 import 'vrm_expression_controls.dart';
@@ -36,6 +37,7 @@ class _VRMContainerState extends State<VRMContainer> {
   WebViewController? _webViewController;
   WebviewController? _desktopWebviewController;
   VRMExpressionManager? _expressionManager;
+  VRMModelLoader? _vrmModelLoader;
   bool _isWebViewReady = false;
   bool _isWebViewSupported = true;
   bool _useDesktopWebview = false;
@@ -51,6 +53,23 @@ class _VRMContainerState extends State<VRMContainer> {
     super.initState();
     _currentVrmModel = widget.vrmModel;
     _useDesktopWebview = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    
+    // Initialize VRM Model Loader
+    _vrmModelLoader = VRMModelLoader(
+      executeJavaScript: _executeJavaScript,
+      setState: setState,
+      isWebViewReady: () => _isWebViewReady,
+      isLoadingVRM: () => _isLoadingVRM,
+      setLoadingVRM: (loading) => _isLoadingVRM = loading,
+      getCurrentVrmModel: () => _currentVrmModel,
+      setAnimations: (animations, discovered) {
+        setState(() {
+          _availableAnimations = animations;
+          _animationsDiscovered = discovered;
+        });
+      },
+    );
+    
     _setupVRMViewer();
   }
   
@@ -131,7 +150,7 @@ class _VRMContainerState extends State<VRMContainer> {
       _expressionManager = VRMExpressionManager();
       await _expressionManager!.initialize(_desktopWebviewController!);
       
-      _checkAndLoadVRM();
+      _vrmModelLoader?.checkAndLoadVRM();
     } catch (e) {
       print("❌ [VRMContainer] Failed to initialize Desktop WebView: $e");
       print("❌ [VRMContainer] WebView error stack trace: ${StackTrace.current}");
@@ -159,7 +178,7 @@ class _VRMContainerState extends State<VRMContainer> {
               setState(() {
                 _isWebViewReady = true;
               });
-              _checkAndLoadVRM();
+              _vrmModelLoader?.checkAndLoadVRM();
             },
           ),
         )
@@ -171,91 +190,6 @@ class _VRMContainerState extends State<VRMContainer> {
     } catch (e) {
       print("❌ [VRMContainer] Failed to initialize WebView: $e");
       throw e;
-    }
-  }
-  
-  Future<void> _checkAndLoadVRM() async {
-    if (!_isWebViewReady) return;
-    
-    // Check if VRM viewer is ready
-    await Future.delayed(const Duration(milliseconds: 500));
-    await _executeJavaScript('''
-      if (window.vrmViewerReady === true) {
-        console.log("VRM Viewer is ready");
-        window.postMessage("READY", "*");
-      } else {
-        console.log("VRM Viewer not ready yet");
-        setTimeout(() => {
-          if (window.vrmViewerReady === true) {
-            window.postMessage("READY", "*");
-          }
-        }, 1000);
-      }
-    ''');
-    
-    // Discover available animations
-    final animations = await VRMLogic.discoverAvailableAnimations();
-    setState(() {
-      _availableAnimations = animations;
-      _animationsDiscovered = true;
-    });
-    
-    // Load VRM model if one is specified
-    if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
-      await _loadVRMModel(_currentVrmModel!);
-    }
-  }
-  
-  Future<void> _clearExistingVRM() async {
-    if (!_isWebViewReady) return;
-    
-    try {
-      print("🧹 [VRMContainer] Clearing existing VRM model");
-      
-      await _executeJavaScript('''
-        if (window.vrm) {
-          console.log("Clearing existing VRM model");
-          if (window.VRMUtils && window.vrm.scene) {
-            window.VRMUtils.deepDispose(window.vrm.scene);
-          }
-          if (window.scene && window.vrm.scene) {
-            window.scene.remove(window.vrm.scene);
-          }
-          window.vrm = null;
-        }
-      ''');
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to clear existing VRM: $e");
-    }
-  }
-  
-  Future<void> _loadVRMModel(String vrmModel) async {
-    if (!_isWebViewReady || _isLoadingVRM) return;
-    _isLoadingVRM = true;
-    try {
-      // Use VRMLogic helper to get base64 data
-      final base64Data = await VRMLogic.loadVRMModel(vrmModel);
-      print("🟢 [VRMContainer] Loading VRM model: $vrmModel");
-      await _executeJavaScript('''
-        if (window.loadVRM) {
-          // Convert base64 to blob URL
-          const byteCharacters = atob('$base64Data');
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], {type: 'application/octet-stream'});
-          const blobUrl = URL.createObjectURL(blob);
-          window.loadVRM(blobUrl);
-        } else {
-          console.error("loadVRM function not available");
-        }
-      ''');
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to load VRM model: $e");
-    } finally {
-      _isLoadingVRM = false;
     }
   }
   
@@ -316,12 +250,12 @@ class _VRMContainerState extends State<VRMContainer> {
       _currentVrmModel = widget.vrmModel;
       if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
         // First clear any existing VRM, then load the new one
-        _clearExistingVRM().then((_) {
-          _loadVRMModel(_currentVrmModel!);
+        _vrmModelLoader?.clearExistingVRM().then((_) {
+          _vrmModelLoader?.loadVRMModel(_currentVrmModel!);
         });
       } else {
         // If no VRM model specified, just clear existing
-        _clearExistingVRM();
+        _vrmModelLoader?.clearExistingVRM();
       }
     }
   }
@@ -443,6 +377,7 @@ class _VRMContainerState extends State<VRMContainer> {
   @override
   void dispose() {
     _expressionManager?.dispose();
+    _vrmModelLoader?.dispose();
     super.dispose();
   }
 }
