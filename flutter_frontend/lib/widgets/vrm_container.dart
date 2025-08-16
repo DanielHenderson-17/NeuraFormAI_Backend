@@ -282,77 +282,6 @@ class _VRMContainerState extends State<VRMContainer> {
     }
   }
   
-  // Expression control methods (now using VRMExpressionManager)
-  Future<void> triggerBlink() async {
-    if (_expressionManager != null) {
-      await _expressionManager!.triggerBlink();
-    } else {
-      // Fallback for when expression manager is not available
-      if (!_isWebViewReady) return;
-      await _executeJavaScript('window.triggerBlink();');
-    }
-  }
-  
-  Future<void> setExpression(String expressionName, double weight) async {
-    if (!_isWebViewReady) return;
-    await _executeJavaScript('window.setExpression("$expressionName", $weight);');
-  }
-  
-  Future<void> setEmotion(String emotion) async {
-    if (_expressionManager != null) {
-      await _expressionManager!.setEmotion(emotion);
-    } else {
-      // Fallback
-      if (!_isWebViewReady) return;
-      await _executeJavaScript('window.setEmotion("$emotion");');
-    }
-  }
-  
-  Future<void> setLipSync(String phoneme) async {
-    if (!_isWebViewReady) return;
-    await _executeJavaScript('window.setLipSync("$phoneme");');
-  }
-  
-  Future<void> clearLipSync() async {
-    if (!_isWebViewReady) return;
-    await _executeJavaScript('window.clearLipSync();');
-  }
-  
-  Future<void> resetExpressions() async {
-    if (_expressionManager != null) {
-      await _expressionManager!.clearAllExpressions();
-    } else {
-      // Fallback
-      if (!_isWebViewReady) return;
-      await _executeJavaScript('window.resetExpressions();');
-    }
-  }
-
-  // New methods for voice-synchronized lip sync
-  Future<void> startVoiceLipSync(String text, {required double audioDuration}) async {
-    if (_expressionManager != null) {
-      await _expressionManager!.startVoiceLipSync(text, audioDuration: audioDuration);
-    } else {
-      print("⚠️ [VRMContainer] Expression manager not available for voice lip sync");
-    }
-  }
-
-  Future<void> startTextLipSync(String text, {double durationPerWord = 0.15}) async {
-    if (_expressionManager != null) {
-      await _expressionManager!.startTextLipSync(text, durationPerWord: durationPerWord);
-    } else {
-      print("⚠️ [VRMContainer] Expression manager not available for text lip sync");
-    }
-  }
-
-  Future<void> stopLipSync() async {
-    if (_expressionManager != null) {
-      await _expressionManager!.stopLipSync();
-    } else {
-      await clearLipSync();
-    }
-  }
-
 
   // Animation control methods
   Future<void> playAnimation(String animationName) async {
@@ -368,6 +297,17 @@ class _VRMContainerState extends State<VRMContainer> {
       executeJavaScript: _executeJavaScript,
     );
   }
+  
+  // Expression control methods
+  Future<void> triggerBlink() async => _expressionManager?.triggerBlink();
+  Future<void> setExpression(String expressionName, double weight) async => _expressionManager?.setExpression(expressionName, weight);
+  Future<void> setEmotion(String emotion) async => _expressionManager?.setEmotion(emotion);
+  Future<void> setLipSync(String phoneme) async => _expressionManager?.setLipSync(phoneme);
+  Future<void> clearLipSync() async => _expressionManager?.clearLipSync();
+  Future<void> resetExpressions() async => _expressionManager?.resetExpressions();
+  Future<void> startVoiceLipSync(String text, {required double audioDuration}) async => _expressionManager?.startVoiceLipSync(text, audioDuration: audioDuration);
+  Future<void> startTextLipSync(String text, {double durationPerWord = 0.15}) async => _expressionManager?.startTextLipSync(text, durationPerWord: durationPerWord);
+  Future<void> stopLipSync() async => _expressionManager?.stopLipSync();
   
   @override
   void didUpdateWidget(VRMContainer oldWidget) {

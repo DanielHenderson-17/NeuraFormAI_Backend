@@ -128,6 +128,28 @@ class VRMExpressionManager {
     await _triggerBlink();
   }
 
+  /// Public method to set an expression by name with a weight
+  Future<void> setExpression(String expressionName, double weight) async {
+    if (_webviewController != null) {
+      await _webviewController!.executeScript("setExpression('$expressionName', $weight);");
+    }
+  }
+
+  /// Public method to set lip sync directly
+  Future<void> setLipSync(String phoneme) async {
+    await _setLipSync(phoneme);
+  }
+
+  /// Public method to clear lip sync
+  Future<void> clearLipSync() async {
+    await _clearLipSync();
+  }
+
+  /// Public method to reset expressions
+  Future<void> resetExpressions() async {
+    await _resetExpressions();
+  }
+
   // Internal methods for VRM viewer communication
 
   Future<void> _setLipSync(String phoneme) async {
