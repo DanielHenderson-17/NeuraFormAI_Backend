@@ -3,12 +3,6 @@ REM =============================
 REM NeuraFormAI Project Runner
 REM =============================
 
-REM 1️⃣ Rebuild VRM viewer bundle
-echo 🔄 Rebuilding VRM viewer bundle...
-cd chat_ui\assets\vrm_viewer
-call npx rollup -c
-cd ..\..\..
-
 REM 2️⃣ Activate virtual environment
 call tts-venv\Scripts\activate
 
