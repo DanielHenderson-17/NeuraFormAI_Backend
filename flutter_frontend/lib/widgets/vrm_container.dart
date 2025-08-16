@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
 import '../services/vrm_model_loader.dart';
 import '../services/vrm_assets_service.dart';
+import '../services/webview_js_executor.dart';
+import '../services/webview_service.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
 import 'vrm_expression_controls.dart';
@@ -35,11 +37,11 @@ class VRMContainer extends StatefulWidget {
 }
 
 class _VRMContainerState extends State<VRMContainer> {
-  WebViewController? _webViewController;
-  WebviewController? _desktopWebviewController;
   VRMExpressionManager? _expressionManager;
   VRMModelLoader? _vrmModelLoader;
   VRMAssetsService? _vrmAssetsService;
+  WebViewJSExecutor? _jsExecutor;
+  WebViewService? _webViewService;
   bool _isWebViewReady = false;
   bool _isWebViewSupported = true;
   bool _useDesktopWebview = false;
@@ -56,8 +58,14 @@ class _VRMContainerState extends State<VRMContainer> {
     _currentVrmModel = widget.vrmModel;
     _useDesktopWebview = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
     
+    // Initialize WebView JS Executor
+    _jsExecutor = WebViewJSExecutor(useDesktopWebview: _useDesktopWebview);
+    
     // Initialize VRM Assets Service
     _vrmAssetsService = VRMAssetsService();
+    
+    // Initialize VRM Expression Manager
+    _expressionManager = VRMExpressionManager();
     
     // Initialize VRM Model Loader
     _vrmModelLoader = VRMModelLoader(
@@ -75,7 +83,25 @@ class _VRMContainerState extends State<VRMContainer> {
       },
     );
     
+    // Initialize WebView Service
+    _webViewService = WebViewService.create(
+      useDesktopWebview: _useDesktopWebview,
+      onWebViewReady: () {
+        setState(() {
+          _isWebViewReady = true;
+        });
+      },
+      jsExecutor: _jsExecutor!,
+      expressionManager: _expressionManager,
+      vrmModelLoader: _vrmModelLoader,
+    );
+    
     _setupVRMViewer();
+  }
+  
+  /// Wrapper method for JavaScript execution using the service
+  Future<String> _executeJavaScript(String script) async {
+    return await _jsExecutor?.executeJavaScript(script) ?? '';
   }
   
   Future<void> _setupVRMViewer() async {
@@ -84,13 +110,15 @@ class _VRMContainerState extends State<VRMContainer> {
       print("🔧 [VRMContainer] Platform: ${Platform.operatingSystem}");
       print("🔧 [VRMContainer] Using desktop webview: $_useDesktopWebview");
       
+      // Copy assets to temporary directory
       await _vrmAssetsService?.copyAssetsToTempDirectory();
-      _htmlPath = _vrmAssetsService?.htmlPath; // Update local reference
+      _htmlPath = _vrmAssetsService?.htmlPath;
       
-      if (_useDesktopWebview) {
-        await _initializeDesktopWebView();
+      if (_htmlPath != null) {
+        // Initialize the appropriate WebView service
+        await _webViewService?.initialize(_htmlPath!);
       } else {
-        await _initializeWebView();
+        throw Exception("HTML path is null after copying assets");
       }
     } catch (e) {
       print("❌ [VRMContainer] Failed to setup VRM viewer: $e");
@@ -102,101 +130,6 @@ class _VRMContainerState extends State<VRMContainer> {
     }
   }
   
-  Future<void> _initializeDesktopWebView() async {
-    if (_htmlPath == null) {
-      print("❌ [VRMContainer] HTML path is null, cannot initialize WebView");
-      return;
-    }
-    
-    try {
-      print("🔧 [VRMContainer] Initializing desktop WebView...");
-      print("🔧 [VRMContainer] HTML path: $_htmlPath");
-      
-      _desktopWebviewController = WebviewController();
-      
-      print("🔧 [VRMContainer] WebView controller created, initializing...");
-      await _desktopWebviewController!.initialize();
-      
-      print("🔧 [VRMContainer] WebView initialized, loading URL...");
-      // Load the HTML file
-      await _desktopWebviewController!.loadUrl('file:///${_htmlPath!}');
-      
-      print("🟢 [VRMContainer] Desktop WebView initialized successfully");
-      setState(() {
-        _isWebViewReady = true;
-      });
-      
-      // Initialize expression manager with the webview controller
-      _expressionManager = VRMExpressionManager();
-      await _expressionManager!.initialize(_desktopWebviewController!);
-      
-      _vrmModelLoader?.checkAndLoadVRM();
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to initialize Desktop WebView: $e");
-      print("❌ [VRMContainer] WebView error stack trace: ${StackTrace.current}");
-      throw e;
-    }
-  }
-  
-  Future<void> _initializeWebView() async {
-    try {
-      if (kIsWeb) {
-        // For web, skip WebView and show information instead
-        print("🌐 [VRMContainer] Running on web - WebView not supported, using fallback UI");
-        setState(() {
-          _isWebViewReady = false; // Use fallback UI on web
-        });
-        return;
-      }
-      
-      _webViewController = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onPageFinished: (String url) {
-              print("🟢 [VRMContainer] WebView page finished loading");
-              setState(() {
-                _isWebViewReady = true;
-              });
-              _vrmModelLoader?.checkAndLoadVRM();
-            },
-          ),
-        )
-        ..enableZoom(false);
-      
-      if (_htmlPath != null) {
-        await _webViewController!.loadFile(_htmlPath!);
-      }
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to initialize WebView: $e");
-      throw e;
-    }
-  }
-  
-  Future<String> _executeJavaScript(String script) async {
-    try {
-      if (_useDesktopWebview && _desktopWebviewController != null) {
-        final result = await _desktopWebviewController!.executeScript(script);
-        return result ?? '';
-      } else if (_webViewController != null) {
-        // For mobile WebView, runJavaScript returns void, so we need to use runJavaScriptReturningResult
-        try {
-          final result = await _webViewController!.runJavaScriptReturningResult(script);
-          return result?.toString() ?? '';
-        } catch (e) {
-          // Fallback to regular runJavaScript if the returning result method fails
-          await _webViewController!.runJavaScript(script);
-          return '';
-        }
-      }
-      return '';
-    } catch (e) {
-      print("❌ [VRMContainer] JavaScript execution error: $e");
-      return '';
-    }
-  }
-  
-
   // Animation control methods
   Future<void> playAnimation(String animationName) async {
     await VRMLogic.playAnimation(
@@ -275,7 +208,8 @@ class _VRMContainerState extends State<VRMContainer> {
     
     // Desktop WebView (Windows)
     if (_useDesktopWebview) {
-      if (_desktopWebviewController == null) {
+      final desktopService = _webViewService as DesktopWebViewService?;
+      if (desktopService?.controller == null) {
         return Container(
           color: const Color(0xFF1e1e1e),
           child: const Center(
@@ -299,7 +233,7 @@ class _VRMContainerState extends State<VRMContainer> {
       
       return Stack(
         children: [
-          Webview(_desktopWebviewController!),
+          Webview(desktopService!.controller!),
           VRMAnimationControls(
             animationsDiscovered: _animationsDiscovered,
             availableAnimations: _availableAnimations,
@@ -315,7 +249,8 @@ class _VRMContainerState extends State<VRMContainer> {
     }
     
     // Standard WebView (Mobile/Web)
-    if (_htmlPath == null || _webViewController == null) {
+    final mobileService = _webViewService as MobileWebViewService?;
+    if (_htmlPath == null || mobileService?.controller == null) {
       return Container(
         color: const Color(0xFF1e1e1e),
         child: const Center(
@@ -339,7 +274,7 @@ class _VRMContainerState extends State<VRMContainer> {
     
     return Stack(
       children: [
-        WebViewWidget(controller: _webViewController!),
+        WebViewWidget(controller: mobileService!.controller!),
         VRMAnimationControls(
           animationsDiscovered: _animationsDiscovered,
           availableAnimations: _availableAnimations,
@@ -359,6 +294,8 @@ class _VRMContainerState extends State<VRMContainer> {
     _expressionManager?.dispose();
     _vrmModelLoader?.dispose();
     _vrmAssetsService?.dispose();
+    _jsExecutor?.dispose();
+    _webViewService?.dispose();
     super.dispose();
   }
 }
