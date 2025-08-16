@@ -374,150 +374,17 @@ class _VRMContainerState extends State<VRMContainer> {
 
   // Animation control methods
   Future<void> playAnimation(String animationName) async {
-    try {
-      print("🎬 [VRMContainer] ============ PLAY ANIMATION START ============");
-      print("🎬 [VRMContainer] Playing animation: $animationName");
-      print("🎬 [VRMContainer] WebView ready: $_isWebViewReady");
-      print("🎬 [VRMContainer] Desktop WebView controller: ${_desktopWebviewController != null}");
-      print("🎬 [VRMContainer] Mobile WebView controller: ${_webViewController != null}");
-      
-      if (!_isWebViewReady) {
-        print("🎬 [VRMContainer] WebView not ready for animation");
-        return;
-      }
-
-  // Use VRMLogic helper to get base64 data for animation
-  final base64Data = await VRMLogic.loadAnimation(animationName);
-  print("🎬 [VRMContainer] Animation file: $animationName.vrma");
-  String result = await _executeJavaScript('''
-        (function() {
-          try {
-            var output = [];
-            
-            // First do basic verification
-            output.push("🔍 Basic verification starting...");
-            output.push("🔍 Window exists: " + (typeof window !== 'undefined'));
-            output.push("🔍 THREE exists: " + (typeof THREE !== 'undefined'));
-            output.push("🔍 VRM Viewer ready: " + window.vrmViewerReady);
-            
-            // Check animation functions
-            output.push("🔍 Animation functions:");
-            output.push("🔍 - loadAnimation: " + (typeof window.loadAnimation));
-            output.push("🔍 - playAnimation: " + (typeof window.playAnimation));
-            
-            // Check VRM animation imports
-            output.push("🔍 VRM Animation imports:");
-            output.push("🔍 - createVRMAnimationClip: " + (typeof createVRMAnimationClip));
-            output.push("🔍 - VRMAnimationLoaderPlugin: " + (typeof VRMAnimationLoaderPlugin));
-            output.push("🔍 - VRMLookAtQuaternionProxy: " + (typeof VRMLookAtQuaternionProxy));
-            
-            // Check current animation state
-            output.push("🔍 Current animation state:");
-            output.push("🔍 - VRM loaded: " + !!window.vrm);
-            output.push("🔍 - Mixer exists: " + !!window.mixer);
-            output.push("🔍 - Animation clip exists: " + !!window.animationClip);
-            output.push("🔍 - Is playing: " + window.isPlaying);
-            
-            // Create blob URL from base64 data
-            output.push("🎬 Creating blob URL for animation...");
-            console.log("🎬 [JS] Base64 data length:", '$base64Data'.length);
-            console.log("🎬 [JS] Base64 preview:", '$base64Data'.substring(0, 50) + "...");
-            
-            const byteCharacters = atob('$base64Data');
-            console.log("🎬 [JS] Decoded byte characters length:", byteCharacters.length);
-            
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            console.log("🎬 [JS] Byte array length:", byteArray.length);
-            console.log("🎬 [JS] First 10 bytes:", Array.from(byteArray.slice(0, 10)));
-            
-            const blob = new Blob([byteArray], {type: 'application/octet-stream'});
-            console.log("🎬 [JS] Blob size:", blob.size);
-            console.log("🎬 [JS] Blob type:", blob.type);
-            
-            const blobUrl = URL.createObjectURL(blob);
-            console.log("🎬 [JS] Full blob URL:", blobUrl);
-            output.push("🎬 Created blob URL: " + blobUrl);
-            
-            // Load and play the animation using blob URL
-            if (typeof window.loadAnimation === 'function') {
-              output.push("🎬 Calling loadAnimation with blob URL...");
-              window.loadAnimation(blobUrl).then(function(loaded) {
-                console.log("🎬 [JS] Animation loaded:", loaded);
-                if (loaded && typeof window.playAnimation === 'function') {
-                  const played = window.playAnimation();
-                  console.log("🎬 [JS] Animation played:", played);
-                } else {
-                  console.error("🎬 [JS] Animation loading failed or playAnimation not available");
-                }
-              }).catch(function(error) {
-                console.error("🎬 [JS] Animation loading error:", error);
-              });
-              output.push("🎬 Animation loading started asynchronously");
-            } else {
-              output.push("❌ loadAnimation function not available!");
-            }
-            
-            return "VERIFICATION_RESULTS:" + output.join("|");
-          } catch (error) {
-            return "VERIFICATION_ERROR:" + error.message + "|" + error.stack;
-          }
-        })();
-      ''');
-      
-      print("🎬 [VRMContainer] JavaScript response: '$result'");
-      
-      // Parse the detailed verification results
-      if (result.trim().isNotEmpty) {
-        if (result.startsWith("VERIFICATION_RESULTS:")) {
-          print("🎬 [VRMContainer] ✅ JavaScript verification completed successfully!");
-          var logs = result.substring("VERIFICATION_RESULTS:".length).split("|");
-          for (var log in logs) {
-            if (log.isNotEmpty) {
-              print("🎬 [JS->Flutter] $log");
-            }
-          }
-        } else if (result.startsWith("VERIFICATION_ERROR:")) {
-          print("🎬 [VRMContainer] ❌ JavaScript verification failed!");
-          print("🎬 [VRMContainer] Error: ${result.substring("VERIFICATION_ERROR:".length)}");
-        } else if (result.contains("verification_complete")) {
-          print("🎬 [VRMContainer] ✅ JavaScript verification completed successfully!");
-          print("🎬 [VRMContainer] Check the console above for detailed JavaScript logs starting with [JS]");
-        } else if (result.contains("verification_failed")) {
-          print("🎬 [VRMContainer] ❌ JavaScript verification failed!");
-        } else {
-          print("🎬 [VRMContainer] ✅ JavaScript executed, result: $result");
-        }
-      } else {
-        print("🎬 [VRMContainer] ⚠️ JavaScript returned empty result");
-        print("🎬 [VRMContainer] This might be normal for desktop WebView - check console for JS logs");
-      }
-      
-      print("🎬 [VRMContainer] JavaScript executed successfully");
-      print("🎬 [VRMContainer] ============ PLAY ANIMATION COMPLETE ============");
-    } catch (e) {
-      print("❌ [VRMContainer] ============ PLAY ANIMATION FAILED ============");
-      print("❌ [VRMContainer] Failed to play animation: $e");
-      print("❌ [VRMContainer] Stack trace: ${StackTrace.current}");
-    }
+    await VRMLogic.playAnimation(
+      animationName: animationName,
+      executeJavaScript: _executeJavaScript,
+      isWebViewReady: _isWebViewReady,
+    );
   }
 
   Future<void> stopAnimation() async {
-    try {
-      print("⏹️ [VRMContainer] Stopping animation");
-      await _executeJavaScript('''
-        if (window.stopAnimation) {
-          window.stopAnimation();
-        } else {
-          console.warn('stopAnimation function not available');
-        }
-      ''');
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to stop animation: $e");
-    }
+    await VRMLogic.stopAnimation(
+      executeJavaScript: _executeJavaScript,
+    );
   }
   
   @override
