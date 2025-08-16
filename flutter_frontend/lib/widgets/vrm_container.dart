@@ -194,7 +194,11 @@ class _VRMContainerState extends State<VRMContainer> {
     ''');
     
     // Discover available animations
-    await _discoverAvailableAnimations();
+    final animations = await VRMLogic.discoverAvailableAnimations();
+    setState(() {
+      _availableAnimations = animations;
+      _animationsDiscovered = true;
+    });
     
     // Load VRM model if one is specified
     if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
@@ -349,28 +353,6 @@ class _VRMContainerState extends State<VRMContainer> {
     }
   }
 
-  // Discover available animations dynamically
-  Future<void> _discoverAvailableAnimations() async {
-    if (_animationsDiscovered) return;
-    try {
-      print("🔍 [VRMContainer] Discovering available animations...");
-      final animations = await VRMLogic.discoverAvailableAnimations();
-      setState(() {
-        _availableAnimations = animations;
-        _animationsDiscovered = true;
-      });
-      print("🔍 [VRMContainer] Discovered ${animations.length} animations");
-      for (var anim in animations) {
-        print("   - ${anim['emoji']} ${anim['displayName']} (${anim['name']})");
-      }
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to discover animations: $e");
-      setState(() {
-        _availableAnimations = [];
-        _animationsDiscovered = true;
-      });
-    }
-  }
 
   // Animation control methods
   Future<void> playAnimation(String animationName) async {
