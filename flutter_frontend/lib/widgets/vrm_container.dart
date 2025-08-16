@@ -9,8 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
-import '../helpers/vrm_helpers.dart';
 import 'vrm_expression_controls.dart';
+import '../helpers/vrm_logic.dart';
+import '../helpers/vrm_helpers.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -226,24 +227,13 @@ class _VRMContainerState extends State<VRMContainer> {
   
   Future<void> _loadVRMModel(String vrmModel) async {
     if (!_isWebViewReady || _isLoadingVRM) return;
-    
     _isLoadingVRM = true;
-    
     try {
-      // Get the VRM file from assets
-      final vrmData = await rootBundle.load('assets/vrm_models/$vrmModel');
-      final bytes = vrmData.buffer.asUint8List();
-      
-      print("🟢 [VRMContainer] Loading VRM model: $vrmModel (${bytes.length} bytes)");
-      
-      // Convert bytes to base64 for passing to JavaScript
-      final base64Data = base64Encode(bytes);
-      
-      // Load the VRM model in the WebView using base64 data
+      // Use VRMLogic helper to get base64 data
+      final base64Data = await VRMLogic.loadVRMModel(vrmModel);
+      print("🟢 [VRMContainer] Loading VRM model: $vrmModel");
       await _executeJavaScript('''
         if (window.loadVRM) {
-          console.log("Loading VRM from base64 data: ${bytes.length} bytes");
-          
           // Convert base64 to blob URL
           const byteCharacters = atob('$base64Data');
           const byteNumbers = new Array(byteCharacters.length);
@@ -253,7 +243,6 @@ class _VRMContainerState extends State<VRMContainer> {
           const byteArray = new Uint8Array(byteNumbers);
           const blob = new Blob([byteArray], {type: 'application/octet-stream'});
           const blobUrl = URL.createObjectURL(blob);
-          
           window.loadVRM(blobUrl);
         } else {
           console.error("loadVRM function not available");
@@ -363,78 +352,17 @@ class _VRMContainerState extends State<VRMContainer> {
   // Discover available animations dynamically
   Future<void> _discoverAvailableAnimations() async {
     if (_animationsDiscovered) return;
-    
     try {
       print("🔍 [VRMContainer] Discovering available animations...");
-      
-      // Get list of animation files from assets/animations/
-      final manifestContent = await rootBundle.loadString('AssetManifest.json');
-      final Map<String, dynamic> manifestMap = json.decode(manifestContent);
-      
-      final List<Map<String, String>> animations = [];
-      
-      // Filter for .vrma files in assets/animations/ (excluding subdirectories like 'old')
-      for (String key in manifestMap.keys) {
-        if (key.startsWith('assets/animations/') && 
-            key.endsWith('.vrma') && 
-            !key.contains('/old/') &&  // Exclude 'old' folder
-            key.split('/').length == 3) {  // Only direct files, not in subdirectories
-          
-          final fileName = key.split('/').last;
-          final animationName = fileName.replaceAll('.vrma', '');
-          
-          // Create a display name (capitalize first letter)
-          final displayName = animationName[0].toUpperCase() + animationName.substring(1);
-          
-          // Simple emoji mapping for known animations, or use a default
-          String emoji = '🎭'; // Default emoji
-          switch (animationName.toLowerCase()) {
-            case 'peace':
-              emoji = '✌️';
-              break;
-            case 'greeting':
-              emoji = '👋';
-              break;
-            case 'pose':
-              emoji = '🤸';
-              break;
-            case 'squat':
-              emoji = '🏃';
-              break;
-            case 'spin':
-              emoji = '🌀';
-              break;
-            case 'shoot':
-              emoji = '🔫';
-              break;
-            case 'full':
-              emoji = '💫';
-              break;
-            default:
-              emoji = '🎭';
-          }
-          
-          animations.add({
-            'name': animationName,
-            'displayName': displayName,
-            'emoji': emoji,
-            'path': key,
-          });
-          
-          print("🔍 [VRMContainer] Found animation: $animationName ($displayName) at $key");
-        }
-      }
-      
+      final animations = await VRMLogic.discoverAvailableAnimations();
       setState(() {
         _availableAnimations = animations;
         _animationsDiscovered = true;
       });
-      
       print("🔍 [VRMContainer] Discovered ${animations.length} animations");
       for (var anim in animations) {
         print("   - ${anim['emoji']} ${anim['displayName']} (${anim['name']})");
       }
-      
     } catch (e) {
       print("❌ [VRMContainer] Failed to discover animations: $e");
       setState(() {
@@ -458,20 +386,10 @@ class _VRMContainerState extends State<VRMContainer> {
         return;
       }
 
-      // Load the animation file from assets and convert to blob URL
-      final animationData = await rootBundle.load('assets/animations/$animationName.vrma');
-      final bytes = animationData.buffer.asUint8List();
-      final base64Data = base64Encode(bytes);
-      
-      print("🎬 [VRMContainer] ============ ANIMATION FILE DETAILS ============");
-      print("🎬 [VRMContainer] Animation file: $animationName.vrma");
-      print("🎬 [VRMContainer] File size: ${bytes.length} bytes");
-      print("🎬 [VRMContainer] Base64 length: ${base64Data.length}");
-      print("🎬 [VRMContainer] Base64 preview: ${base64Data.substring(0, 50)}...");
-      print("🎬 [VRMContainer] First 10 bytes: ${bytes.take(10).toList()}");
-      print("🎬 [VRMContainer] ============================================");
-
-      String result = await _executeJavaScript('''
+  // Use VRMLogic helper to get base64 data for animation
+  final base64Data = await VRMLogic.loadAnimation(animationName);
+  print("🎬 [VRMContainer] Animation file: $animationName.vrma");
+  String result = await _executeJavaScript('''
         (function() {
           try {
             var output = [];
