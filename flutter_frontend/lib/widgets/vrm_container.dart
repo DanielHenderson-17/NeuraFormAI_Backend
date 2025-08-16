@@ -10,6 +10,7 @@ import '../services/vrm_expression_manager.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
 import '../helpers/vrm_helpers.dart';
+import 'vrm_expression_controls.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -684,6 +685,10 @@ class _VRMContainerState extends State<VRMContainer> {
             onPlayAnimation: (name) => playAnimation(name),
             onStopAnimation: () => stopAnimation(),
           ),
+          VRMExpressionControls(
+            onSetEmotion: (emotion) => setEmotion(emotion),
+            onBlink: () => triggerBlink(),
+          ),
         ],
       );
     }
@@ -719,6 +724,10 @@ class _VRMContainerState extends State<VRMContainer> {
           availableAnimations: _availableAnimations,
           onPlayAnimation: (name) => playAnimation(name),
           onStopAnimation: () => stopAnimation(),
+        ),
+        VRMExpressionControls(
+          onSetEmotion: (emotion) => setEmotion(emotion),
+          onBlink: () => triggerBlink(),
         ),
       ],
     );
