@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
+import 'vrm_animation_controls.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -667,7 +668,12 @@ class _VRMContainerState extends State<VRMContainer> {
       return Stack(
         children: [
           Webview(_desktopWebviewController!),
-          _buildAnimationControlsOverlay(),
+          VRMAnimationControls(
+            animationsDiscovered: _animationsDiscovered,
+            availableAnimations: _availableAnimations,
+            onPlayAnimation: (name) => playAnimation(name),
+            onStopAnimation: () => stopAnimation(),
+          ),
         ],
       );
     }
@@ -698,91 +704,16 @@ class _VRMContainerState extends State<VRMContainer> {
     return Stack(
       children: [
         WebViewWidget(controller: _webViewController!),
-        _buildAnimationControlsOverlay(),
+        VRMAnimationControls(
+          animationsDiscovered: _animationsDiscovered,
+          availableAnimations: _availableAnimations,
+          onPlayAnimation: (name) => playAnimation(name),
+          onStopAnimation: () => stopAnimation(),
+        ),
       ],
     );
   }
   
-  Widget _buildAnimationControlsOverlay() {
-    return Positioned(
-      top: 10,
-      right: 10,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Animations',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                // Show loading indicator if animations are still being discovered
-                if (!_animationsDiscovered)
-                  _buildSmallAnimationButton('⏳', 'Loading...', () {})
-                else ...[
-                  // Dynamic animation buttons
-                  ..._availableAnimations.map((anim) =>
-                    _buildSmallAnimationButton(
-                      anim['emoji']!,
-                      anim['displayName']!,
-                      () => playAnimation(anim['name']!)
-                    )
-                  ).toList(),
-                  // Show message if no animations found
-                  if (_availableAnimations.isEmpty)
-                    _buildSmallAnimationButton('❌', 'No Anims', () {}),
-                ],
-                // Stop button
-                _buildSmallAnimationButton('⏹️', 'Stop', () => stopAnimation()),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallAnimationButton(String emoji, String label, VoidCallback onPressed) {
-    return InkWell(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.blue.withOpacity(0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildVRMFallback() {
     return Container(
       color: const Color(0xFF1e1e1e),
