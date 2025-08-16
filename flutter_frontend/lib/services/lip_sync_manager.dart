@@ -107,7 +107,7 @@ class LipSyncManager {
         _currentPhonemeIndex < _lipSyncPhonemes.length) {
       final phoneme = _lipSyncPhonemes[_currentPhonemeIndex];
       _onSetLipSync?.call(phoneme);
-      print("🎭 Lip-sync phoneme ${_currentPhonemeIndex + 1}/${_lipSyncPhonemes.length}: $phoneme");
+      // print("🎭 Lip-sync phoneme ${_currentPhonemeIndex + 1}/${_lipSyncPhonemes.length}: $phoneme");
     }
   }
 

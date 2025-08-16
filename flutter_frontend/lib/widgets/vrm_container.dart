@@ -8,6 +8,7 @@ import 'package:webview_windows/webview_windows.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/vrm_expression_manager.dart';
 import '../services/vrm_model_loader.dart';
+import '../services/vrm_assets_service.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
 import 'vrm_expression_controls.dart';
@@ -38,6 +39,7 @@ class _VRMContainerState extends State<VRMContainer> {
   WebviewController? _desktopWebviewController;
   VRMExpressionManager? _expressionManager;
   VRMModelLoader? _vrmModelLoader;
+  VRMAssetsService? _vrmAssetsService;
   bool _isWebViewReady = false;
   bool _isWebViewSupported = true;
   bool _useDesktopWebview = false;
@@ -53,6 +55,9 @@ class _VRMContainerState extends State<VRMContainer> {
     super.initState();
     _currentVrmModel = widget.vrmModel;
     _useDesktopWebview = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    
+    // Initialize VRM Assets Service
+    _vrmAssetsService = VRMAssetsService();
     
     // Initialize VRM Model Loader
     _vrmModelLoader = VRMModelLoader(
@@ -79,7 +84,9 @@ class _VRMContainerState extends State<VRMContainer> {
       print("🔧 [VRMContainer] Platform: ${Platform.operatingSystem}");
       print("🔧 [VRMContainer] Using desktop webview: $_useDesktopWebview");
       
-      await _copyAssetsToTempDirectory();
+      await _vrmAssetsService?.copyAssetsToTempDirectory();
+      _htmlPath = _vrmAssetsService?.htmlPath; // Update local reference
+      
       if (_useDesktopWebview) {
         await _initializeDesktopWebView();
       } else {
@@ -92,33 +99,6 @@ class _VRMContainerState extends State<VRMContainer> {
         _isWebViewSupported = false;
         _errorMessage = "VRM Viewer not supported on this platform: $e";
       });
-    }
-  }
-  
-  Future<void> _copyAssetsToTempDirectory() async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final vrmViewerDir = Directory('${tempDir.path}/vrm_viewer');
-      
-      if (!await vrmViewerDir.exists()) {
-        await vrmViewerDir.create(recursive: true);
-      }
-      
-      // Copy HTML file
-      final htmlContent = await rootBundle.loadString('assets/vrm_viewer/index.html');
-      final htmlFile = File('${vrmViewerDir.path}/index.html');
-      await htmlFile.writeAsString(htmlContent);
-      
-      // Copy bundle.js file
-      final bundleContent = await rootBundle.loadString('assets/vrm_viewer/bundle.js');
-      final bundleFile = File('${vrmViewerDir.path}/bundle.js');
-      await bundleFile.writeAsString(bundleContent);
-      
-      _htmlPath = htmlFile.path;
-      print("🟢 [VRMContainer] Assets copied to: ${vrmViewerDir.path}");
-    } catch (e) {
-      print("❌ [VRMContainer] Failed to copy assets: $e");
-      throw e;
     }
   }
   
@@ -378,6 +358,7 @@ class _VRMContainerState extends State<VRMContainer> {
   void dispose() {
     _expressionManager?.dispose();
     _vrmModelLoader?.dispose();
+    _vrmAssetsService?.dispose();
     super.dispose();
   }
 }
