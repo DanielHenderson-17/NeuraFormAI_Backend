@@ -14,6 +14,7 @@ import '../services/webview_service.dart';
 import 'vrm_animation_controls.dart';
 import 'vrm_fallback.dart';
 import 'vrm_expression_controls.dart';
+import 'vrm_phoneme_controls.dart';
 import '../helpers/vrm_logic.dart';
 import '../helpers/vrm_helpers.dart';
 import 'vrm_loading_overlay.dart';
@@ -277,6 +278,10 @@ class _VRMContainerState extends State<VRMContainer> {
             onSetEmotion: (emotion) => setEmotion(emotion),
             onBlink: () => triggerBlink(),
           ),
+          VRMPhonemeControls(
+            onSetPhoneme: (phoneme) => setLipSync(phoneme),
+            onClearPhonemes: () => clearLipSync(),
+          ),
         ],
       );
     }
@@ -317,6 +322,10 @@ class _VRMContainerState extends State<VRMContainer> {
         VRMExpressionControls(
           onSetEmotion: (emotion) => setEmotion(emotion),
           onBlink: () => triggerBlink(),
+        ),
+        VRMPhonemeControls(
+          onSetPhoneme: (phoneme) => setLipSync(phoneme),
+          onClearPhonemes: () => clearLipSync(),
         ),
       ],
     );
