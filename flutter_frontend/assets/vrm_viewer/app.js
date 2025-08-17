@@ -554,8 +554,9 @@ window.loadAnimation = async function (animationPath) {
   }
 };
 
-window.playAnimation = function () {
+window.playAnimation = function (loop = true) {
   console.log("🎬 [DEBUG] ============ PLAY ANIMATION START ============");
+  console.log("🎬 [DEBUG] Loop parameter:", loop);
   console.log("🎬 [DEBUG] Mixer available:", !!mixer);
   console.log("🎬 [DEBUG] Animation clip available:", !!animationClip);
   console.log("🎬 [DEBUG] Is already playing:", isPlaying);
@@ -588,8 +589,8 @@ window.playAnimation = function () {
     action.reset();
     console.log("🎬 [DEBUG] Action reset complete");
 
-    action.setLoop(THREE.LoopRepeat);
-    console.log("🎬 [DEBUG] Loop mode set to repeat");
+    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce);
+    console.log("🎬 [DEBUG] Loop mode set to", loop ? "repeat" : "once");
 
     action.clampWhenFinished = false;
     console.log("🎬 [DEBUG] Clamp when finished set to false");

@@ -9,13 +9,14 @@ class VRMLogic {
     required String animationName,
     required Future<String> Function(String) executeJavaScript,
     bool isWebViewReady = true,
+    bool loop = true, // Default to loop for backward compatibility
   }) async {
     if (!isWebViewReady) {
       print("🎬 [VRMLogic] WebView not ready for animation");
       return;
     }
     final base64Data = await loadAnimation(animationName);
-    print("🎬 [VRMLogic] Animation file: $animationName.vrma");
+    print("🎬 [VRMLogic] Animation file: $animationName.vrma (loop: $loop)");
     String result = await executeJavaScript('''
       (function() {
         try {
@@ -49,8 +50,38 @@ class VRMLogic {
           if (typeof window.loadAnimation === 'function') {
             output.push("🎬 Calling loadAnimation with blob URL...");
             window.loadAnimation(blobUrl).then(function(loaded) {
-              if (loaded && typeof window.playAnimation === 'function') {
-                window.playAnimation();
+              if (loaded) {
+                // Custom animation play logic with loop control
+                if (window.mixer && window.animationClip) {
+                  console.log("🎬 Playing animation with loop: $loop");
+                  try {
+                    // Stop all existing actions
+                    window.mixer.stopAllAction();
+                    
+                    // Create and configure action
+                    const action = window.mixer.clipAction(window.animationClip);
+                    action.reset();
+                    
+                    // Set loop mode based on parameter
+                    const shouldLoop = $loop;
+                    if (shouldLoop) {
+                      action.setLoop(window.THREE ? window.THREE.LoopRepeat : 2201);
+                    } else {
+                      action.setLoop(window.THREE ? window.THREE.LoopOnce : 2200);
+                      action.clampWhenFinished = true;
+                    }
+                    
+                    // Play animation
+                    action.play();
+                    window.isPlaying = true;
+                    
+                    console.log("✅ Animation started with loop: " + shouldLoop);
+                  } catch (error) {
+                    console.log("❌ Error playing animation: " + error.message);
+                  }
+                } else {
+                  console.log("❌ Mixer or animation clip not available");
+                }
               }
             });
             output.push("🎬 Animation loading started asynchronously");

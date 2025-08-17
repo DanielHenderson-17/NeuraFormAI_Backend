@@ -86,6 +86,7 @@ class VRMModelLoader {
           animationName: 'idle',
           executeJavaScript: _executeJavaScript!,
           isWebViewReady: _isWebViewReady?.call() ?? false,
+          loop: true, // Idle animation should loop
         );
         
         // Hide loading overlay after animation starts
@@ -166,12 +167,13 @@ class VRMModelLoader {
       // Wait another moment for mixer to be ready
       await Future.delayed(const Duration(seconds: 1));
       
-      // Auto-play idle animation after VRM model loads
+      // Auto-play idle animation after VRM model loads (with looping)
       print("🎭 [VRMModelLoader] Auto-playing idle animation");
       await VRMLogic.playAnimation(
         animationName: 'idle',
         executeJavaScript: _executeJavaScript!,
         isWebViewReady: _isWebViewReady?.call() ?? false,
+        loop: true, // Idle animation should loop
       );
       
       // Hide loading overlay after animation starts

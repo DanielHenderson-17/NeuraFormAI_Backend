@@ -138,11 +138,12 @@ class _VRMContainerState extends State<VRMContainer> {
   }
   
   // Animation control methods
-  Future<void> playAnimation(String animationName) async {
+  Future<void> playAnimation(String animationName, {bool loop = false}) async {
     await VRMLogic.playAnimation(
       animationName: animationName,
       executeJavaScript: _executeJavaScript,
       isWebViewReady: _isWebViewReady,
+      loop: loop,
     );
   }
 
