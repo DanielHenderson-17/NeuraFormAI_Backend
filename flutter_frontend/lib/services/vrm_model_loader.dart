@@ -23,6 +23,9 @@ class VRMModelLoader {
   
   // Callback to set animations
   void Function(List<Map<String, String>>, bool)? _setAnimations;
+  
+  // Callback to hide loading overlay when animation starts
+  VoidCallback? _onAnimationStarted;
 
   /// Constructor
   VRMModelLoader({
@@ -33,6 +36,7 @@ class VRMModelLoader {
     required void Function(bool) setLoadingVRM,
     required String? Function() getCurrentVrmModel,
     required void Function(List<Map<String, String>>, bool) setAnimations,
+    VoidCallback? onAnimationStarted,
   }) {
     _executeJavaScript = executeJavaScript;
     _setState = setState;
@@ -41,6 +45,7 @@ class VRMModelLoader {
     _setLoadingVRM = setLoadingVRM;
     _getCurrentVrmModel = getCurrentVrmModel;
     _setAnimations = setAnimations;
+    _onAnimationStarted = onAnimationStarted;
   }
 
   /// Main method to check VRM viewer readiness and load VRM model
@@ -82,6 +87,10 @@ class VRMModelLoader {
           executeJavaScript: _executeJavaScript!,
           isWebViewReady: _isWebViewReady?.call() ?? false,
         );
+        
+        // Hide loading overlay after animation starts
+        print("✨ [VRMModelLoader] Animation started, hiding loading overlay");
+        _onAnimationStarted?.call();
       }
     } catch (e) {
       print("❌ [VRMModelLoader] Error in checkAndLoadVRM: $e");
@@ -164,6 +173,10 @@ class VRMModelLoader {
         executeJavaScript: _executeJavaScript!,
         isWebViewReady: _isWebViewReady?.call() ?? false,
       );
+      
+      // Hide loading overlay after animation starts
+      print("✨ [VRMModelLoader] Animation started, hiding loading overlay");
+      _onAnimationStarted?.call();
       
     } catch (e) {
       print("❌ [VRMModelLoader] Failed to load VRM model: $e");

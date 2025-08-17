@@ -16,6 +16,7 @@ import 'vrm_fallback.dart';
 import 'vrm_expression_controls.dart';
 import '../helpers/vrm_logic.dart';
 import '../helpers/vrm_helpers.dart';
+import 'vrm_loading_overlay.dart';
 
 class VRMContainer extends StatefulWidget {
   final String? vrmModel;
@@ -46,6 +47,7 @@ class _VRMContainerState extends State<VRMContainer> {
   bool _isWebViewSupported = true;
   bool _useDesktopWebview = false;
   bool _isLoadingVRM = false;
+  bool _showLoadingOverlay = true; // Show loading overlay initially
   String? _currentVrmModel;
   String? _htmlPath;
   String? _errorMessage;
@@ -79,6 +81,11 @@ class _VRMContainerState extends State<VRMContainer> {
         setState(() {
           _availableAnimations = animations;
           _animationsDiscovered = discovered;
+        });
+      },
+      onAnimationStarted: () {
+        setState(() {
+          _showLoadingOverlay = false;
         });
       },
     );
@@ -161,6 +168,12 @@ class _VRMContainerState extends State<VRMContainer> {
     super.didUpdateWidget(oldWidget);
     if (widget.vrmModel != _currentVrmModel) {
       _currentVrmModel = widget.vrmModel;
+      
+      // Show loading overlay when switching VRMs
+      setState(() {
+        _showLoadingOverlay = true;
+      });
+      
       if (_currentVrmModel != null && _currentVrmModel!.isNotEmpty) {
         // First clear any existing VRM, then load the new one
         _vrmModelLoader?.clearExistingVRM().then((_) {
@@ -168,7 +181,12 @@ class _VRMContainerState extends State<VRMContainer> {
         });
       } else {
         // If no VRM model specified, just clear existing
-        _vrmModelLoader?.clearExistingVRM();
+        _vrmModelLoader?.clearExistingVRM().then((_) {
+          // Hide loading overlay if no VRM to load
+          setState(() {
+            _showLoadingOverlay = false;
+          });
+        });
       }
     }
   }
@@ -194,6 +212,20 @@ class _VRMContainerState extends State<VRMContainer> {
   }
   
   Widget _buildContent() {
+    // Wrap everything in a Stack to add the loading overlay
+    return Stack(
+      children: [
+        _buildWebViewContent(),
+        // Loading overlay
+        VRMLoadingOverlayAnimated(
+          isVisible: _showLoadingOverlay,
+          loadingText: 'Loading VRM...',
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildWebViewContent() {
     if (!_isWebViewSupported) {
       return VRMFallback(
         currentVrmModel: _currentVrmModel,
