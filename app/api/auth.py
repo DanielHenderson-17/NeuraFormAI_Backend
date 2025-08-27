@@ -12,6 +12,7 @@ import logging
 
 from app.services.auth_service import oauth_service, AuthProvider
 from app.services.user_service import UserProfile
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,10 @@ class OAuthLoginRequest(BaseModel):
     provider: str  # "google", "facebook", "apple"
     token: str
     device_info: Optional[Dict[str, Any]] = None
+
+class GoogleTokenExchangeRequest(BaseModel):
+    authorization_code: str
+    redirect_uri: str
 
 class UserRegistrationRequest(BaseModel):
     provider: str
@@ -166,6 +171,70 @@ async def oauth_login(request: OAuthLoginRequest):
         logger.error(f"OAuth login failed: {e}")
         # Return error detail to aid debugging (temporary; tighten in production)
         raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
+
+@router.post("/exchange-google-token")
+async def exchange_google_token(request: GoogleTokenExchangeRequest):
+    """Securely exchange Google authorization code for ID token using backend credentials"""
+    try:
+        import os
+        from google.auth.transport import requests
+        from google.oauth2 import id_token
+        
+        # Get Google client credentials from environment (secure)
+        google_client_id = os.getenv('GOOGLE_CLIENT_ID')
+        google_client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+        
+        if not google_client_id or not google_client_secret:
+            logger.error("Google client credentials not configured")
+            raise HTTPException(status_code=500, detail="OAuth configuration error")
+        
+        # Exchange authorization code for tokens
+        async with aiohttp.ClientSession() as session:
+            token_url = "https://oauth2.googleapis.com/token"
+            token_data = {
+                'code': request.authorization_code,
+                'client_id': google_client_id,
+                'client_secret': google_client_secret,
+                'redirect_uri': request.redirect_uri,
+                'grant_type': 'authorization_code',
+            }
+            
+            async with session.post(token_url, data=token_data) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"Google token exchange failed: {response.status} - {error_text}")
+                    raise HTTPException(status_code=400, detail="Failed to exchange authorization code")
+                
+                token_response = await response.json()
+                id_token = token_response.get('id_token')
+                
+                if not id_token:
+                    logger.error("No ID token in Google response")
+                    raise HTTPException(status_code=400, detail="No ID token received")
+                
+                # Verify the ID token
+                try:
+                    from google.auth.transport import requests
+                    from google.oauth2 import id_token as google_id_token
+                    
+                    idinfo = google_id_token.verify_oauth2_token(
+                        id_token,
+                        requests.Request(),
+                        google_client_id,
+                        clock_skew_in_seconds=60,
+                    )
+                    logger.info(f"Google ID token verified for user: {idinfo.get('email')}")
+                except Exception as e:
+                    logger.error(f"Google ID token verification failed: {e}")
+                    raise HTTPException(status_code=400, detail="Invalid ID token")
+                
+                return {"id_token": id_token}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google token exchange failed: {e}")
+        raise HTTPException(status_code=500, detail="Token exchange failed")
 
 @router.post("/register", response_model=LoginResponse)
 async def register_user(request: UserRegistrationRequest):

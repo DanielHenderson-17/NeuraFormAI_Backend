@@ -20,7 +20,6 @@ class AuthService {
   
   // Google OAuth configuration
   static const String _googleClientId = AppConfig.googleClientId;
-  static const String _googleClientSecret = AppConfig.googleClientSecret;
   
   static String? get userId => _userId;
   static String? get userEmail => _userEmail;
@@ -137,10 +136,9 @@ class AuthService {
   
   static Future<String?> _getGoogleIdToken() async {
     try {
-      print("🔐 [AuthService] Using desktop OAuth flow (like Python frontend)");
+      print("🔐 [AuthService] Using secure desktop OAuth flow");
       
       // Use desktop OAuth flow - open browser directly to Google OAuth
-      // This matches the Python InstalledAppFlow behavior
       final authUrl = _buildDesktopOAuthUrl();
       print("🌐 [AuthService] Opening Google OAuth: $authUrl");
       
@@ -179,8 +177,8 @@ class AuthService {
       
       print("✅ [AuthService] Received authorization code");
       
-      // Exchange authorization code for ID token
-      final idToken = await _exchangeCodeForIdToken(authCode, server.port!);
+      // Send authorization code to backend for secure token exchange
+      final idToken = await _exchangeCodeWithBackend(authCode, server.port!);
       
       await server.stop();
       _currentServer = null;
@@ -376,24 +374,21 @@ class AuthService {
     return await server.startOAuthServer();
   }
 
-  static Future<String?> _exchangeCodeForIdToken(String authCode, int redirectPort) async {
+  static Future<String?> _exchangeCodeWithBackend(String authCode, int redirectPort) async {
     try {
-      print("🔄 [AuthService] Exchanging authorization code for tokens...");
+      print("🔄 [AuthService] Sending authorization code to backend for secure token exchange...");
       
       final response = await http.post(
-        Uri.parse('https://oauth2.googleapis.com/token'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'code': authCode,
-          'client_id': _googleClientId,
-          'client_secret': _googleClientSecret,
+        Uri.parse('$_backendBaseUrl/api/auth/exchange-google-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'authorization_code': authCode,
           'redirect_uri': 'http://localhost:$redirectPort',
-          'grant_type': 'authorization_code',
-        },
-      );
+        }),
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
-        print("❌ [AuthService] Token exchange failed: ${response.statusCode}");
+        print("❌ [AuthService] Backend token exchange failed: ${response.statusCode}");
         print("❌ [AuthService] Response: ${response.body}");
         return null;
       }
@@ -402,14 +397,14 @@ class AuthService {
       final idToken = data['id_token'];
 
       if (idToken != null) {
-        print("✅ [AuthService] Successfully obtained ID token");
+        print("✅ [AuthService] Successfully obtained ID token from backend");
         return idToken;
       } else {
-        print("❌ [AuthService] No ID token in response");
+        print("❌ [AuthService] No ID token in backend response");
         return null;
       }
     } catch (e) {
-      print("❌ [AuthService] Error exchanging code for token: $e");
+      print("❌ [AuthService] Error exchanging code with backend: $e");
       return null;
     }
   }

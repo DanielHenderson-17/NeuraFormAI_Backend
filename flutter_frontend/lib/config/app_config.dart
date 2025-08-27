@@ -3,9 +3,8 @@ class AppConfig {
   static const String backendBaseUrl = 'http://127.0.0.1:8000';
   
   // Google OAuth configuration
-  // Make sure these match your Google Cloud Console OAuth 2.0 client credentials
+  // Only the Client ID is needed on frontend - Client Secret stays on backend
   static const String googleClientId = '707698270630-julh23dsa6nl1jeph38lelp7bihra0qv.apps.googleusercontent.com';
-  static const String googleClientSecret = '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';
   
   // Local GSI server configuration
   static const String localGsiHost = '127.0.0.1';
