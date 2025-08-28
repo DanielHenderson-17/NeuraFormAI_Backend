@@ -6,8 +6,9 @@ Handles OAuth login, user registration, and session management
 from datetime import date
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, validator, ValidationError
 import logging
 
 from app.services.auth_service import oauth_service, AuthProvider
@@ -23,6 +24,11 @@ security = HTTPBearer()
 class OAuthLoginRequest(BaseModel):
     provider: str  # "google", "facebook", "apple"
     token: str
+    device_info: Optional[Dict[str, Any]] = None
+
+class EmailLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
     device_info: Optional[Dict[str, Any]] = None
 
 class GoogleTokenExchangeRequest(BaseModel):
@@ -51,6 +57,36 @@ class UserRegistrationRequest(BaseModel):
         if not v or len(v.strip()) == 0:
             raise ValueError('Name cannot be empty')
         return v.strip()
+    
+    @validator('birthdate')
+    def validate_birthdate(cls, v):
+        # Check if user is at least 13 years old (COPPA compliance)
+        from datetime import date
+        min_age = date.today().replace(year=date.today().year - 13)
+        if v > min_age:
+            raise ValueError('User must be at least 13 years old')
+        return v
+
+class EmailRegistrationRequest(BaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    password: str
+    birthdate: date
+    timezone: Optional[str] = "UTC"
+    language_preference: Optional[str] = "en"
+    
+    @validator('first_name', 'last_name')
+    def validate_names(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Name cannot be empty')
+        return v.strip()
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
     
     @validator('birthdate')
     def validate_birthdate(cls, v):
@@ -107,7 +143,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     return user
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login/oauth", response_model=LoginResponse)
 async def oauth_login(request: OAuthLoginRequest):
     """OAuth login endpoint"""
     try:
@@ -171,6 +207,44 @@ async def oauth_login(request: OAuthLoginRequest):
         logger.error(f"OAuth login failed: {e}")
         # Return error detail to aid debugging (temporary; tighten in production)
         raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
+
+@router.post("/login", response_model=LoginResponse)
+async def email_login(request: EmailLoginRequest):
+    """Email/password login endpoint"""
+    try:
+        from app.services.user_service import user_service, AuthProvider
+        
+        # Verify password
+        user = await user_service.verify_password(request.email, request.password)
+        
+        if not user:
+            return LoginResponse(
+                success=False,
+                message="Invalid email or password"
+            )
+        
+        # Create session
+        session_token = await oauth_service.create_session(
+            user.id, 
+            request.device_info or {}
+        )
+        
+        # Track login event
+        await oauth_service.track_analytics_event(
+            user.id, 
+            "user_login", 
+            {"provider": "email", "device_info": request.device_info}
+        )
+        
+        return LoginResponse(
+            success=True,
+            user=user,
+            session_token=session_token
+        )
+            
+    except Exception as e:
+        logger.error(f"Email login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
 
 @router.post("/exchange-google-token")
 async def exchange_google_token(request: GoogleTokenExchangeRequest):
@@ -236,8 +310,8 @@ async def exchange_google_token(request: GoogleTokenExchangeRequest):
         logger.error(f"Google token exchange failed: {e}")
         raise HTTPException(status_code=500, detail="Token exchange failed")
 
-@router.post("/register", response_model=LoginResponse)
-async def register_user(request: UserRegistrationRequest):
+@router.post("/register/oauth", response_model=LoginResponse)
+async def oauth_register_user(request: UserRegistrationRequest):
     """Register a new user from OAuth"""
     try:
         provider = AuthProvider(request.provider)
@@ -276,6 +350,60 @@ async def register_user(request: UserRegistrationRequest):
     except Exception as e:
         logger.error(f"User registration failed: {e}")
         # Return the error message to help diagnose setup issues (temporary; tighten in prod)
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@router.post("/register", response_model=LoginResponse)
+async def email_register_user(request: EmailRegistrationRequest):
+    """Register a new user with email/password"""
+    logger.info("=== REGISTRATION ENDPOINT CALLED ===")
+    logger.info(f"Request data: {request}")
+    try:
+        from app.services.user_service import user_service, AuthProvider
+        
+        # Debug logging
+        logger.info(f"Registration request received: email={request.email}, first_name={request.first_name}, last_name={request.last_name}, birthdate={request.birthdate}")
+        
+        # Check if user already exists
+        existing_user = await user_service.get_user_by_email(request.email)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+        
+        # Create user with email authentication
+        user = await user_service.create_user(
+            first_name=request.first_name,
+            last_name=request.last_name,
+            email=request.email,
+            birthdate=request.birthdate,
+            auth_provider=AuthProvider.EMAIL,
+            auth_provider_id=None,
+            timezone=request.timezone,
+            language_preference=request.language_preference,
+            password=request.password
+        )
+        
+        # Create session
+        session_token = await oauth_service.create_session(user.id)
+        
+        # Track registration event
+        await oauth_service.track_analytics_event(
+            user.id, 
+            "user_registration", 
+            {"provider": "email"}
+        )
+        
+        return LoginResponse(
+            success=True,
+            user=user,
+            session_token=session_token
+        )
+    
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(f"Validation error in registration: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Email registration failed: {e}")
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.get("/profile", response_model=UserProfileResponse)

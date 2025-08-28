@@ -98,6 +98,153 @@ class AuthService {
     };
   }
   
+  static Future<Map<String, dynamic>> signInWithEmail(String email, String password) async {
+    try {
+      print("🔐 [AuthService] Starting Email Sign-In...");
+      
+      final response = await http.post(
+        Uri.parse('$_backendBaseUrl/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'password': password,
+          'device_info': {'platform': 'desktop', 'ui': 'flutter'},
+        }),
+      ).timeout(const Duration(seconds: 20));
+      
+      print("🔑 [AuthService] Email login response status: ${response.statusCode}");
+      
+      if (response.statusCode != 200) {
+        final errorBody = await response.body;
+        print("❌ [AuthService] Email login failed: ${response.statusCode}");
+        print("❌ [AuthService] Error response body: $errorBody");
+        
+        // Try to parse the error message from the backend
+        try {
+          final errorData = json.decode(errorBody);
+          if (errorData['detail'] != null) {
+            return {
+              'success': false,
+              'error': errorData['detail'],
+            };
+          }
+        } catch (e) {
+          print("❌ [AuthService] Failed to parse error response: $e");
+        }
+        
+        return {
+          'success': false,
+          'error': 'Invalid email or password',
+        };
+      }
+      
+      final data = json.decode(response.body);
+      if (data['success'] == true && data['session_token'] != null) {
+        // Set user info
+        _userEmail = data['user']['email'];
+        _userFirstName = data['user']['first_name'];
+        _userLastName = data['user']['last_name'];
+        
+        await _saveSession(data['session_token']);
+        return {
+          'success': true,
+          'session_token': data['session_token'],
+        };
+      } else {
+        return {
+          'success': false,
+          'error': data['message'] ?? 'Login failed',
+        };
+      }
+    } catch (e) {
+      print("❌ [AuthService] Email Sign-In error: $e");
+      return {
+        'success': false,
+        'error': 'Network error. Please check your connection.',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> registerWithEmail({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+    required DateTime birthdate,
+  }) async {
+    try {
+      print("🔐 [AuthService] Starting Email Registration...");
+      
+      final requestBody = {
+        'email': email,
+        'password': password,
+        'first_name': firstName,
+        'last_name': lastName,
+        'birthdate': birthdate.toIso8601String().split('T')[0], // YYYY-MM-DD format
+        'device_info': {'platform': 'desktop', 'ui': 'flutter'},
+      };
+      
+      print("🔍 [AuthService] Registration request body: ${json.encode(requestBody)}");
+      
+      final response = await http.post(
+        Uri.parse('$_backendBaseUrl/api/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 20));
+      
+      print("🔑 [AuthService] Email registration response status: ${response.statusCode}");
+      
+      if (response.statusCode != 200) {
+        final errorBody = await response.body;
+        print("❌ [AuthService] Email registration failed: ${response.statusCode}");
+        print("❌ [AuthService] Error response body: $errorBody");
+        
+        // Try to parse the error message from the backend
+        try {
+          final errorData = json.decode(errorBody);
+          if (errorData['detail'] != null) {
+            return {
+              'success': false,
+              'error': errorData['detail'],
+            };
+          }
+        } catch (e) {
+          print("❌ [AuthService] Failed to parse error response: $e");
+        }
+        
+        return {
+          'success': false,
+          'error': 'Registration failed. Please try again.',
+        };
+      }
+      
+      final data = json.decode(response.body);
+      if (data['success'] == true && data['session_token'] != null) {
+        // Set user info
+        _userEmail = data['user']['email'];
+        _userFirstName = data['user']['first_name'];
+        _userLastName = data['user']['last_name'];
+        
+        await _saveSession(data['session_token']);
+        return {
+          'success': true,
+          'session_token': data['session_token'],
+        };
+      } else {
+        return {
+          'success': false,
+          'error': data['message'] ?? 'Registration failed',
+        };
+      }
+    } catch (e) {
+      print("❌ [AuthService] Email Registration error: $e");
+      return {
+        'success': false,
+        'error': 'Network error. Please check your connection.',
+      };
+    }
+  }
+
   static Future<bool> signInWithGoogle() async {
     try {
       print("🔐 [AuthService] Starting Google Sign-In...");
@@ -201,7 +348,7 @@ class AuthService {
       print("🔑 [AuthService] Token length: ${idToken.length}");
       
       final response = await http.post(
-        Uri.parse('$_backendBaseUrl/api/auth/login'),
+        Uri.parse('$_backendBaseUrl/api/auth/login/oauth'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'provider': 'google',
