@@ -231,21 +231,28 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      print("🔐 [LoginScreen] Attempting sign in...");
       final result = await AuthService.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
+      print("🔐 [LoginScreen] Sign in result: $result");
+
       if (result['success'] == true) {
+        print("✅ [LoginScreen] Sign in successful, calling onSignInSuccess...");
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/chat');
+          // Call the success callback instead of trying to navigate
+          widget.onSignInSuccess();
         }
       } else {
+        print("❌ [LoginScreen] Sign in failed: ${result['error']}");
         setState(() {
           _errorMessage = result['error'] ?? 'Invalid email or password';
         });
       }
     } catch (e) {
+      print("❌ [LoginScreen] Exception during sign in: $e");
       setState(() {
         _errorMessage = 'An error occurred. Please try again.';
       });
@@ -265,15 +272,25 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final success = await AuthService.signInWithGoogle();
-      if (success && mounted) {
-        Navigator.pushReplacementNamed(context, '/chat');
+      print("🔐 [LoginScreen] Attempting Google sign in...");
+      final result = await AuthService.signInWithGoogle();
+
+      print("🔐 [LoginScreen] Google sign in result: $result");
+
+      if (result['success'] == true) {
+        print("✅ [LoginScreen] Google sign in successful, calling onSignInSuccess...");
+        if (mounted) {
+          // Call the success callback instead of trying to navigate
+          widget.onSignInSuccess();
+        }
       } else {
+        print("❌ [LoginScreen] Google sign in failed: ${result['error']}");
         setState(() {
-          _errorMessage = 'Google sign-in failed. Please try again.';
+          _errorMessage = result['error'] ?? 'Google sign-in failed. Please try again.';
         });
       }
     } catch (e) {
+      print("❌ [LoginScreen] Exception during Google sign in: $e");
       setState(() {
         _errorMessage = 'An error occurred with Google sign-in.';
       });

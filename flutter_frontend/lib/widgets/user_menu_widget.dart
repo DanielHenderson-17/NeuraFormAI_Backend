@@ -40,14 +40,14 @@ class _UserMenuWidgetState extends State<UserMenuWidget> {
   }
   
   Future<void> _signIn() async {
-    final success = await AuthService.signInWithGoogle();
-    if (success) {
+    final result = await AuthService.signInWithGoogle();
+    if (result['success'] == true) {
       await _checkAuthStatus();
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sign in failed. Please try again.'),
+          SnackBar(
+            content: Text(result['error'] ?? 'Sign in failed. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );

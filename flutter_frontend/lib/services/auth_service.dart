@@ -138,19 +138,27 @@ class AuthService {
         };
       }
       
-      final data = json.decode(response.body);
+      final responseBody = await response.body;
+      print("🔍 [AuthService] Response body: $responseBody");
+      
+      final data = json.decode(responseBody);
+      print("🔍 [AuthService] Parsed response data: $data");
+      
       if (data['success'] == true && data['session_token'] != null) {
+        print("✅ [AuthService] Login successful, setting user data...");
         // Set user info
         _userEmail = data['user']['email'];
         _userFirstName = data['user']['first_name'];
         _userLastName = data['user']['last_name'];
         
         await _saveSession(data['session_token']);
+        print("✅ [AuthService] Session saved successfully");
         return {
           'success': true,
           'session_token': data['session_token'],
         };
       } else {
+        print("❌ [AuthService] Login response indicates failure: ${data['message'] ?? 'No message'}");
         return {
           'success': false,
           'error': data['message'] ?? 'Login failed',
@@ -245,7 +253,7 @@ class AuthService {
     }
   }
 
-  static Future<bool> signInWithGoogle() async {
+  static Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
       print("🔐 [AuthService] Starting Google Sign-In...");
       
@@ -253,29 +261,55 @@ class AuthService {
       final idToken = await _getGoogleIdToken();
       if (idToken == null) {
         print("❌ [AuthService] Failed to get Google ID token");
-        return false;
+        return {
+          'success': false,
+          'error': 'Failed to get Google ID token',
+        };
       }
       
       // Send to backend for authentication
       final loginResult = await _authenticateWithBackend(idToken);
       if (loginResult.success) {
+        print("✅ [AuthService] Google login successful, setting user data...");
         // Set the user info before saving session
         _userFirstName = loginResult.tokenFirstName;
         _userLastName = loginResult.tokenLastName;
         _userEmail = loginResult.tokenEmail;
         
         await _saveSession(loginResult.sessionToken!);
-        return true;
+        print("✅ [AuthService] Google session saved successfully");
+        return {
+          'success': true,
+          'session_token': loginResult.sessionToken,
+        };
       } else if (loginResult.requiresRegistration) {
+        print("📝 [AuthService] Google login requires registration");
         // Handle registration
-        return await _handleRegistration(loginResult);
+        final registrationResult = await _handleRegistration(loginResult);
+        if (registrationResult) {
+          return {
+            'success': true,
+            'session_token': 'registration_completed',
+          };
+        } else {
+          return {
+            'success': false,
+            'error': 'Google registration failed',
+          };
+        }
       } else {
-        print("❌ [AuthService] Login failed: ${loginResult.message}");
-        return false;
+        print("❌ [AuthService] Google login failed: ${loginResult.message}");
+        return {
+          'success': false,
+          'error': loginResult.message ?? 'Google sign-in failed',
+        };
       }
     } catch (e) {
       print("❌ [AuthService] Google Sign-In error: $e");
-      return false;
+      return {
+        'success': false,
+        'error': 'Network error. Please check your connection.',
+      };
     }
   }
   

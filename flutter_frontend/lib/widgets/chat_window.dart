@@ -155,12 +155,14 @@ class _ChatWindowState extends State<ChatWindow> {
         title: const Text('Sign In Required'),
         content: const Text('Please sign in with Google to continue.'),
         actions: [
-          TextButton(
+                      TextButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              final success = await AuthService.signInWithGoogle();
-              if (success) {
+              final result = await AuthService.signInWithGoogle();
+              if (result['success'] == true) {
                 _initializeChat();
+              } else {
+                _showErrorSnackBar(result['error'] ?? 'Sign in failed');
               }
             },
             child: const Text('Sign In with Google'),
